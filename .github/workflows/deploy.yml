@@ -75,17 +75,32 @@ jobs:
         run: terraform init
         working-directory: iac
 
-      - name: Remove orphaned S3 bucket (no state)
+      - name: Import existing resources
         continue-on-error: true
+        working-directory: iac
         run: |
-          # If bucket exists but isn't in tfstate, force-remove it so
-          # Terraform can create it fresh (s3 bucket names are globally unique)
-          if aws s3 ls --query "Buckets[?Name=='$S3_BUCKET_NAME'].Name" --output text 2>/dev/null | grep -q "$S3_BUCKET_NAME"; then
-            echo "Found orphaned bucket, emptying and deleting..."
-            aws s3 rm "s3://$S3_BUCKET_NAME" --recursive
-            aws s3api delete-bucket --bucket "$S3_BUCKET_NAME"
-            echo "Bucket deleted. Waiting 10s for AWS to release the name..."
-            sleep 10
+          # Import resources that may exist from previous partial deploys
+          # All imports are safe to run even if state already has them
+
+          # S3 bucket
+          terraform import aws_s3_bucket.website "$S3_BUCKET_NAME" 2>&1 || true
+
+          # S3 sub-resources
+          terraform import 'aws_s3_bucket_public_access_block.website' "$S3_BUCKET_NAME" 2>&1 || true
+          terraform import 'aws_s3_bucket_ownership_controls.website' "$S3_BUCKET_NAME" 2>&1 || true
+          terraform import 'aws_s3_bucket_acl.website' "$S3_BUCKET_NAME" 2>&1 || true
+          terraform import 'aws_s3_bucket_website_configuration.website' "$S3_BUCKET_NAME" 2>&1 || true
+          terraform import 'aws_s3_bucket_policy.website' "$S3_BUCKET_NAME" 2>&1 || true
+
+          # IAM role for Lambda (already exists from previous run)
+          terraform import 'aws_iam_role.email_lambda' 'ftheroads-email-lambda' 2>&1 || true
+
+          # Route53 records (already created)
+          ZONE_ID=$(aws route53 list-hosted-zones --query "HostedZones[?Name=='ftheroads.com.'].Id" --output text | tr -d '/hostedzone/')
+          if [ -n "$ZONE_ID" ]; then
+            terraform import "aws_route53_record.spf" "${ZONE_ID}_ftheroads.com_TXT" 2>&1 || true
+            terraform import "aws_route53_record.dkim" "${ZONE_ID}_resend._domainkey.ftheroads.com_TXT" 2>&1 || true
+            terraform import "aws_route53_record.dmarc" "${ZONE_ID}__dmarc.ftheroads.com_TXT" 2>&1 || true
           fi
 
       - name: Terraform Apply
