@@ -75,16 +75,17 @@ jobs:
         run: terraform init
         working-directory: iac
 
-      - name: Import existing resources
+      - name: Remove orphaned S3 bucket (no state)
         continue-on-error: true
-        working-directory: iac
         run: |
-          echo "Checking for existing S3 bucket..."
-          if aws s3api head-bucket --bucket "$S3_BUCKET_NAME"; then
-            echo "Bucket exists, importing into Terraform state..."
-            terraform import aws_s3_bucket.website "$S3_BUCKET_NAME" || echo "Import failed, Terraform will attempt create"
-          else
-            echo "Bucket does not exist, Terraform will create it"
+          # If bucket exists but isn't in tfstate, force-remove it so
+          # Terraform can create it fresh (s3 bucket names are globally unique)
+          if aws s3 ls --query "Buckets[?Name=='$S3_BUCKET_NAME'].Name" --output text 2>/dev/null | grep -q "$S3_BUCKET_NAME"; then
+            echo "Found orphaned bucket, emptying and deleting..."
+            aws s3 rm "s3://$S3_BUCKET_NAME" --recursive
+            aws s3api delete-bucket --bucket "$S3_BUCKET_NAME"
+            echo "Bucket deleted. Waiting 10s for AWS to release the name..."
+            sleep 10
           fi
 
       - name: Terraform Apply
