@@ -21,6 +21,7 @@ permissions:
 
 env:
   S3_BUCKET_NAME: ftheroads.com
+  VITE_LAMBDA_URL: https://ruds6ntxyx6vj3stc5i5bdkfzy0djpmr.lambda-url.us-east-1.on.aws/
 
 jobs:
   build:
@@ -114,6 +115,20 @@ jobs:
         working-directory: iac
         env:
           TF_VAR_resend_api_key: ${{ secrets.RESEND_API_KEY }}
+
+      - name: Verify Lambda Function URL
+        run: |
+          URL=$(terraform output -raw lambda_function_url)
+          echo "Lambda URL: $URL"
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" -X POST "$URL" \
+            -H "Content-Type: application/json" \
+            -H "Origin: https://ftheroads.com" \
+            -d '{"to":"test@example.com","subject":"CI test","text":"test"}')
+          echo "Response status: $STATUS"
+          if [ "$STATUS" = "403" ]; then
+            echo "WARNING: Lambda Function URL returned 403 — may need auth fix"
+          fi
+        working-directory: iac
 
       - name: Sync to S3
         run: aws s3 sync dist/ s3://$S3_BUCKET_NAME --delete
