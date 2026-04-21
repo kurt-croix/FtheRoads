@@ -105,8 +105,8 @@ jobs:
             timeout 10 $TF_IMPORT "aws_route53_record.dmarc" "${ZONE_ID}__dmarc.ftheroads.com_TXT" 2>&1 && echo "OK" || echo "Skipped"
           fi
 
-      - name: Terraform Apply
-        run: terraform apply -auto-approve -var-file=envs/prod.tfvars
+      - name: Terraform Plan
+        run: terraform plan -var-file=envs/prod.tfvars
         working-directory: iac
         env:
           TF_VAR_resend_api_key: ${{ secrets.RESEND_API_KEY }}
