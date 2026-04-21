@@ -2,16 +2,17 @@ name: Deploy
 
 on:
   push:
-    branches: [master, main]
+    branches: [master, main, feature/**]
+    paths:
+      - 'iac/**'
+      - 'src/**'
+      - 'public/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'index.html'
+      - 'vite.config.ts'
+      - '.github/workflows/deploy.yml'
   workflow_dispatch:
-    inputs:
-      env:
-        required: false
-        default: "prod"
-        description: "The environment to deploy to"
-        type: choice
-        options:
-          - prod
 
 permissions:
   id-token: write
@@ -44,9 +45,42 @@ jobs:
           name: dist
           path: dist
 
-  terraform:
+  terraform-plan:
     runs-on: ubuntu-latest
     needs: build
+    # Plan runs on ALL branches
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Configure AWS Credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: us-east-1
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v4
+
+      - name: Terraform Init
+        run: terraform init
+        working-directory: iac
+
+      - name: Untaint tainted resources
+        run: terraform untaint aws_s3_bucket.website 2>&1 || true
+        working-directory: iac
+
+      - name: Terraform Plan
+        run: terraform plan -var-file=envs/prod.tfvars
+        working-directory: iac
+        env:
+          TF_VAR_resend_api_key: ${{ secrets.RESEND_API_KEY }}
+
+  terraform-apply:
+    runs-on: ubuntu-latest
+    needs: [build, terraform-plan]
+    # Apply ONLY on master/main
+    if: github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main'
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -70,43 +104,12 @@ jobs:
         run: terraform init
         working-directory: iac
 
-      - name: Import existing resources
-        continue-on-error: true
+      - name: Untaint tainted resources
+        run: terraform untaint aws_s3_bucket.website 2>&1 || true
         working-directory: iac
-        timeout-minutes: 3
-        env:
-          TF_VAR_resend_api_key: ${{ secrets.RESEND_API_KEY }}
-        run: |
-          # Untaint any resources marked as tainted from previous failed applies
-          terraform untaint aws_s3_bucket.website 2>&1 || true
 
-          ZONE_ID=$(aws route53 list-hosted-zones --query "HostedZones[?Name=='ftheroads.com.'].Id" --output text 2>/dev/null | sed 's|/hostedzone/||')
-          TF_IMPORT="terraform import -var-file=envs/prod.tfvars"
-
-          imports=(
-            "aws_s3_bucket_public_access_block.website|$S3_BUCKET_NAME"
-            "aws_s3_bucket_ownership_controls.website|$S3_BUCKET_NAME"
-            "aws_s3_bucket_acl.website|$S3_BUCKET_NAME"
-            "aws_s3_bucket_website_configuration.website|$S3_BUCKET_NAME"
-            "aws_s3_bucket_policy.website|$S3_BUCKET_NAME"
-            "aws_iam_role.email_lambda|ftheroads-email-lambda"
-          )
-
-          for item in "${imports[@]}"; do
-            addr="${item%%|*}"
-            id="${item##*|}"
-            echo "Importing $addr ($id)..."
-            timeout 10 $TF_IMPORT "$addr" "$id" 2>&1 && echo "OK" || echo "Skipped"
-          done
-
-          if [ -n "$ZONE_ID" ]; then
-            timeout 10 $TF_IMPORT "aws_route53_record.spf" "${ZONE_ID}_ftheroads.com_TXT" 2>&1 && echo "OK" || echo "Skipped"
-            timeout 10 $TF_IMPORT "aws_route53_record.dkim" "${ZONE_ID}_resend._domainkey.ftheroads.com_TXT" 2>&1 && echo "OK" || echo "Skipped"
-            timeout 10 $TF_IMPORT "aws_route53_record.dmarc" "${ZONE_ID}__dmarc.ftheroads.com_TXT" 2>&1 && echo "OK" || echo "Skipped"
-          fi
-
-      - name: Terraform Plan
-        run: terraform plan -var-file=envs/prod.tfvars
+      - name: Terraform Apply
+        run: terraform apply -auto-approve -var-file=envs/prod.tfvars
         working-directory: iac
         env:
           TF_VAR_resend_api_key: ${{ secrets.RESEND_API_KEY }}
