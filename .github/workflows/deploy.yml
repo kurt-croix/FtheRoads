@@ -79,6 +79,8 @@ jobs:
         continue-on-error: true
         working-directory: iac
         timeout-minutes: 3
+        env:
+          TF_VAR_resend_api_key: ${{ secrets.RESEND_API_KEY }}
         run: |
           ZONE_ID=$(aws route53 list-hosted-zones --query "HostedZones[?Name=='ftheroads.com.'].Id" --output text 2>/dev/null | sed 's|/hostedzone/||')
           TF_IMPORT="terraform import -var-file=envs/prod.tfvars"
