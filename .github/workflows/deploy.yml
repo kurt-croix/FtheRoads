@@ -110,6 +110,11 @@ jobs:
         run: terraform untaint aws_s3_bucket.website 2>&1 || true
         working-directory: iac
 
+      # TODO: remove after next successful apply — forces recreation to fix auth drift
+      - name: Taint Function URL (one-time fix)
+        run: terraform taint aws_lambda_function_url.send_email 2>&1 || true
+        working-directory: iac
+
       - name: Terraform Apply
         run: terraform apply -auto-approve -var-file=envs/prod.tfvars
         working-directory: iac
