@@ -75,6 +75,15 @@ jobs:
         run: terraform init
         working-directory: iac
 
+      - name: Import existing resources
+        continue-on-error: true
+        working-directory: iac
+        run: |
+          # Import S3 bucket if it already exists (avoids recreate delay)
+          if aws s3api head-bucket --bucket "$S3_BUCKET_NAME" 2>/dev/null; then
+            terraform import aws_s3_bucket.website "$S3_BUCKET_NAME" 2>/dev/null || true
+          fi
+
       - name: Terraform Apply
         run: terraform apply -auto-approve -var-file=envs/prod.tfvars
         working-directory: iac
