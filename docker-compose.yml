@@ -1,0 +1,9 @@
+services:
+  relay:
+    image: dockurr/strfry
+    ports:
+      - "7777:7777"
+    volumes:
+      - ./relay-data:/app/strfry-db
+      - ./strfry.conf:/etc/strfry.conf
+    restart: unless-stopped

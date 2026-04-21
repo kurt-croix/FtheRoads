@@ -1,0 +1,1 @@
+# Source Shapefiles\n\nThese are the original shapefiles exported from the Ray County GIS (raygis.integritygis.com).\nUsed to generate src/data/rayCountyTownships.json via the Esri geometry service for reprojection.\n\n- **AllMaybe/** — Contains all road district polygons (County, Crystal Lakes, Camden, Lawson, Excelsior Springs, Henrietta, Orrick, Richmond)
