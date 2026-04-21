@@ -81,8 +81,8 @@ jobs:
         timeout-minutes: 3
         run: |
           ZONE_ID=$(aws route53 list-hosted-zones --query "HostedZones[?Name=='ftheroads.com.'].Id" --output text 2>/dev/null | sed 's|/hostedzone/||')
+          TF_IMPORT="terraform import -var-file=envs/prod.tfvars"
 
-          # Check each resource and import only if it exists in AWS but not in state
           imports=(
             "aws_s3_bucket_public_access_block.website|$S3_BUCKET_NAME"
             "aws_s3_bucket_ownership_controls.website|$S3_BUCKET_NAME"
@@ -96,14 +96,13 @@ jobs:
             addr="${item%%|*}"
             id="${item##*|}"
             echo "Importing $addr ($id)..."
-            timeout 10 terraform import "$addr" "$id" 2>&1 && echo "OK" || echo "Skipped (already in state or doesn't exist)"
+            timeout 10 $TF_IMPORT "$addr" "$id" 2>&1 && echo "OK" || echo "Skipped"
           done
 
-          # Route53 records need zone_id
           if [ -n "$ZONE_ID" ]; then
-            timeout 10 terraform import "aws_route53_record.spf" "${ZONE_ID}_ftheroads.com_TXT" 2>&1 && echo "OK" || echo "Skipped"
-            timeout 10 terraform import "aws_route53_record.dkim" "${ZONE_ID}_resend._domainkey.ftheroads.com_TXT" 2>&1 && echo "OK" || echo "Skipped"
-            timeout 10 terraform import "aws_route53_record.dmarc" "${ZONE_ID}__dmarc.ftheroads.com_TXT" 2>&1 && echo "OK" || echo "Skipped"
+            timeout 10 $TF_IMPORT "aws_route53_record.spf" "${ZONE_ID}_ftheroads.com_TXT" 2>&1 && echo "OK" || echo "Skipped"
+            timeout 10 $TF_IMPORT "aws_route53_record.dkim" "${ZONE_ID}_resend._domainkey.ftheroads.com_TXT" 2>&1 && echo "OK" || echo "Skipped"
+            timeout 10 $TF_IMPORT "aws_route53_record.dmarc" "${ZONE_ID}__dmarc.ftheroads.com_TXT" 2>&1 && echo "OK" || echo "Skipped"
           fi
 
       - name: Terraform Apply
