@@ -78,29 +78,32 @@ jobs:
       - name: Import existing resources
         continue-on-error: true
         working-directory: iac
+        timeout-minutes: 3
         run: |
-          # Import resources that may exist from previous partial deploys
-          # All imports are safe to run even if state already has them
+          ZONE_ID=$(aws route53 list-hosted-zones --query "HostedZones[?Name=='ftheroads.com.'].Id" --output text 2>/dev/null | sed 's|/hostedzone/||')
 
-          # S3 bucket
-          terraform import aws_s3_bucket.website "$S3_BUCKET_NAME" 2>&1 || true
+          # Check each resource and import only if it exists in AWS but not in state
+          imports=(
+            "aws_s3_bucket_public_access_block.website|$S3_BUCKET_NAME"
+            "aws_s3_bucket_ownership_controls.website|$S3_BUCKET_NAME"
+            "aws_s3_bucket_acl.website|$S3_BUCKET_NAME"
+            "aws_s3_bucket_website_configuration.website|$S3_BUCKET_NAME"
+            "aws_s3_bucket_policy.website|$S3_BUCKET_NAME"
+            "aws_iam_role.email_lambda|ftheroads-email-lambda"
+          )
 
-          # S3 sub-resources
-          terraform import 'aws_s3_bucket_public_access_block.website' "$S3_BUCKET_NAME" 2>&1 || true
-          terraform import 'aws_s3_bucket_ownership_controls.website' "$S3_BUCKET_NAME" 2>&1 || true
-          terraform import 'aws_s3_bucket_acl.website' "$S3_BUCKET_NAME" 2>&1 || true
-          terraform import 'aws_s3_bucket_website_configuration.website' "$S3_BUCKET_NAME" 2>&1 || true
-          terraform import 'aws_s3_bucket_policy.website' "$S3_BUCKET_NAME" 2>&1 || true
+          for item in "${imports[@]}"; do
+            addr="${item%%|*}"
+            id="${item##*|}"
+            echo "Importing $addr ($id)..."
+            timeout 10 terraform import "$addr" "$id" 2>&1 && echo "OK" || echo "Skipped (already in state or doesn't exist)"
+          done
 
-          # IAM role for Lambda (already exists from previous run)
-          terraform import 'aws_iam_role.email_lambda' 'ftheroads-email-lambda' 2>&1 || true
-
-          # Route53 records (already created)
-          ZONE_ID=$(aws route53 list-hosted-zones --query "HostedZones[?Name=='ftheroads.com.'].Id" --output text | tr -d '/hostedzone/')
+          # Route53 records need zone_id
           if [ -n "$ZONE_ID" ]; then
-            terraform import "aws_route53_record.spf" "${ZONE_ID}_ftheroads.com_TXT" 2>&1 || true
-            terraform import "aws_route53_record.dkim" "${ZONE_ID}_resend._domainkey.ftheroads.com_TXT" 2>&1 || true
-            terraform import "aws_route53_record.dmarc" "${ZONE_ID}__dmarc.ftheroads.com_TXT" 2>&1 || true
+            timeout 10 terraform import "aws_route53_record.spf" "${ZONE_ID}_ftheroads.com_TXT" 2>&1 && echo "OK" || echo "Skipped"
+            timeout 10 terraform import "aws_route53_record.dkim" "${ZONE_ID}_resend._domainkey.ftheroads.com_TXT" 2>&1 && echo "OK" || echo "Skipped"
+            timeout 10 terraform import "aws_route53_record.dmarc" "${ZONE_ID}__dmarc.ftheroads.com_TXT" 2>&1 && echo "OK" || echo "Skipped"
           fi
 
       - name: Terraform Apply
