@@ -62,3 +62,7 @@ resource "aws_lambda_function_url" "send_email" {
     max_age           = 86400
   }
 }
+
+output "lambda_function_url" {
+  value = aws_lambda_function_url.send_email.function_url
+}
