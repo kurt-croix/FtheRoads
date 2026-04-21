@@ -79,9 +79,12 @@ jobs:
         continue-on-error: true
         working-directory: iac
         run: |
-          # Import S3 bucket if it already exists (avoids recreate delay)
-          if aws s3api head-bucket --bucket "$S3_BUCKET_NAME" 2>/dev/null; then
-            terraform import aws_s3_bucket.website "$S3_BUCKET_NAME" 2>/dev/null || true
+          echo "Checking for existing S3 bucket..."
+          if aws s3api head-bucket --bucket "$S3_BUCKET_NAME"; then
+            echo "Bucket exists, importing into Terraform state..."
+            terraform import aws_s3_bucket.website "$S3_BUCKET_NAME" || echo "Import failed, Terraform will attempt create"
+          else
+            echo "Bucket does not exist, Terraform will create it"
           fi
 
       - name: Terraform Apply
