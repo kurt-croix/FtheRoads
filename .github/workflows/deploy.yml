@@ -63,11 +63,6 @@ jobs:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           aws-region: us-east-1
 
-      - name: Pre-sync to S3
-        continue-on-error: true
-        id: pre-sync
-        run: aws s3 sync dist/ s3://$S3_BUCKET_NAME --delete
-
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v4
 
@@ -113,8 +108,7 @@ jobs:
         env:
           TF_VAR_resend_api_key: ${{ secrets.RESEND_API_KEY }}
 
-      - name: Post-sync to S3 (after terraform for initial bucket creation)
-        if: steps.pre-sync.outcome == 'failure'
+      - name: Sync to S3
         run: aws s3 sync dist/ s3://$S3_BUCKET_NAME --delete
 
       - name: Invalidate CloudFront
