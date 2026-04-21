@@ -21,7 +21,7 @@ permissions:
 
 env:
   S3_BUCKET_NAME: ftheroads.com
-  VITE_LAMBDA_URL: https://ruds6ntxyx6vj3stc5i5bdkfzy0djpmr.lambda-url.us-east-1.on.aws/
+  VITE_LAMBDA_URL: https://ocoxc5q46dsjb7m4qqgy6sxn4y0srnal.lambda-url.us-east-1.on.aws/
 
 jobs:
   build:
@@ -110,11 +110,6 @@ jobs:
         run: terraform untaint aws_s3_bucket.website 2>&1 || true
         working-directory: iac
 
-      # TODO: remove after next successful apply — forces recreation to fix auth drift
-      - name: Taint Function URL (one-time fix)
-        run: terraform taint aws_lambda_function_url.send_email 2>&1 || true
-        working-directory: iac
-
       - name: Terraform Apply
         run: terraform apply -auto-approve -var-file=envs/prod.tfvars
         working-directory: iac
@@ -125,14 +120,19 @@ jobs:
         run: |
           URL=$(terraform output -raw lambda_function_url)
           echo "Lambda URL: $URL"
+
+          # Test direct Lambda invoke (bypasses Function URL)
+          echo '{"httpMethod":"POST","headers":{"origin":"https://ftheroads.com"},"body":"{\"to\":\"test@example.com\",\"subject\":\"CI test\",\"text\":\"test\"}"}' \
+            | aws lambda invoke --function-name ftheroads-send-email --payload file:///dev/stdin /tmp/lambda-response.json --cli-binary-format raw-in-base64-out
+          echo "Direct invoke response:"
+          cat /tmp/lambda-response.json
+
+          # Test Function URL
           STATUS=$(curl -s -o /dev/null -w "%{http_code}" -X POST "$URL" \
             -H "Content-Type: application/json" \
             -H "Origin: https://ftheroads.com" \
             -d '{"to":"test@example.com","subject":"CI test","text":"test"}')
-          echo "Response status: $STATUS"
-          if [ "$STATUS" = "403" ]; then
-            echo "WARNING: Lambda Function URL returned 403 — may need auth fix"
-          fi
+          echo "Function URL status: $STATUS"
         working-directory: iac
 
       - name: Sync to S3
