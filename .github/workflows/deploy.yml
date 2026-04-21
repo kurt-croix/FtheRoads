@@ -77,6 +77,9 @@ jobs:
         env:
           TF_VAR_resend_api_key: ${{ secrets.RESEND_API_KEY }}
         run: |
+          # Untaint any resources marked as tainted from previous failed applies
+          terraform untaint -allow-missing -var-file=envs/prod.tfvars aws_s3_bucket.website 2>&1 || true
+
           ZONE_ID=$(aws route53 list-hosted-zones --query "HostedZones[?Name=='ftheroads.com.'].Id" --output text 2>/dev/null | sed 's|/hostedzone/||')
           TF_IMPORT="terraform import -var-file=envs/prod.tfvars"
 
