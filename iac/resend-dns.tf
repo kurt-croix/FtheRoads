@@ -10,11 +10,11 @@ resource "aws_route53_record" "spf" {
   records = [var.resend_spf_record]
 }
 
-# DKIM CNAME — Resend provides the subdomain and value
+# DKIM TXT — Resend provides the public key for domain signing
 resource "aws_route53_record" "dkim" {
   zone_id = data.aws_route53_zone.selected.zone_id
   name    = var.resend_dkim_name
-  type    = "CNAME"
+  type    = "TXT"
   ttl     = 300
   records = [var.resend_dkim_value]
 }

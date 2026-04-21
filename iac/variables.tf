@@ -39,13 +39,13 @@ variable "resend_spf_record" {
 }
 
 variable "resend_dkim_name" {
-  description = "DKIM CNAME name from Resend (e.g. 'resend._domainkey.ftheroads.com')"
+  description = "DKIM TXT record name from Resend (e.g. 'resend._domainkey')"
   type        = string
   default     = ""
 }
 
 variable "resend_dkim_value" {
-  description = "DKIM CNAME value from Resend (e.g. 'XXXXX.dkim.resend.dev')"
+  description = "DKIM TXT record value from Resend (the public key starting with 'p=')"
   type        = string
   default     = ""
 }

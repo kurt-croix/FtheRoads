@@ -1,16 +1,3 @@
-# SSM Parameter for Resend API key (encrypted)
-resource "aws_ssm_parameter" "resend_api_key" {
-  name        = "/ftheroads/resend-api-key"
-  description = "Resend API key for email notifications"
-  type        = "SecureString"
-  value       = var.resend_api_key
-
-  tags = {
-    Name        = "ftheroads-resend-api-key"
-    Environment = var.environment
-  }
-}
-
 # IAM role for the email Lambda
 resource "aws_iam_role" "email_lambda" {
   name = "ftheroads-email-lambda"
@@ -34,23 +21,6 @@ resource "aws_iam_role_policy_attachment" "email_lambda_basic" {
   policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
 }
 
-# Allow Lambda to read the SSM parameter
-resource "aws_iam_role_policy" "email_lambda_ssm" {
-  name = "ssm-read"
-  role = aws_iam_role.email_lambda.id
-
-  policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Effect   = "Allow"
-        Action   = "ssm:GetParameter"
-        Resource = aws_ssm_parameter.resend_api_key.arn
-      }
-    ]
-  })
-}
-
 # Zip the Lambda function code
 data "archive_file" "email_lambda_zip" {
   type        = "zip"
@@ -69,7 +39,7 @@ resource "aws_lambda_function" "send_email" {
 
   environment {
     variables = {
-      RESEND_API_KEY = aws_ssm_parameter.resend_api_key.value
+      RESEND_API_KEY = var.resend_api_key
     }
   }
 
