@@ -17,6 +17,7 @@ on:
 permissions:
   id-token: write
   contents: write
+  pages: write
 
 env:
   S3_BUCKET_NAME: ftheroads.com
@@ -133,4 +134,38 @@ jobs:
           git add iac/terraform.tfstate
           git diff --cached --quiet || git commit -m "terraform: update state [skip ci]"
           git push
-# trigger
+
+  deploy-pages:
+    runs-on: ubuntu-latest
+    needs: build
+    # Pages deploys only on main/master
+    if: github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main'
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: Build for GitHub Pages
+        run: npm install && npm run build
+        env:
+          VITE_BASE_PATH: "/FtheRoads/"
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: dist
+
+      - name: Deploy to GitHub Pages
+        id: deploy
+        uses: actions/deploy-pages@v4
