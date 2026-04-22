@@ -1,6 +1,6 @@
 import { useCallback } from 'react';
-import { useNostrLogin } from '@nostrify/react/login';
-import { nip19 } from 'nostr-tools';
+// import { useNostrLogin } from '@nostrify/react/login';
+// import { nip19 } from 'nostr-tools';
 import { DEFAULT_NOTIFICATION_EMAIL, DISTRICT_EMAIL_MAP } from '@/lib/constants';
 
 // --- nostr-mail (uid.ovh bridge) ---
@@ -26,7 +26,8 @@ interface ReportNotification {
 }
 
 export function useNostrMail() {
-  const { logins } = useNostrLogin();
+  // const { logins } = useNostrLogin();
+  // Uncomment when re-enabling nostr-mail bridge
 
   const sendReportNotification = useCallback(async (report: ReportNotification) => {
     // --- Lambda email (Resend) ---
@@ -71,17 +72,18 @@ export function useNostrMail() {
 
     // --- nostr-mail (uid.ovh bridge) ---
     // Fallback if VITE_LAMBDA_URL is not set
-    const NOTIFICATION_EMAIL = DEFAULT_NOTIFICATION_EMAIL;
-    const nsecLogin = logins.find(l => l.type === 'nsec');
-    if (!nsecLogin || nsecLogin.type !== 'nsec') {
-      throw new Error('Email notification requires nsec login');
-    }
-    const decoded = nip19.decode(nsecLogin.data.nsec);
-    const secretKey = decoded.data as Uint8Array;
-    const pubkey = await import('nostr-tools/pure').then(m => m.getPublicKey(secretKey));
-    const npub = nip19.npubEncode(pubkey);
-
+    // Uncomment below and remove the throw to re-enable nostr-mail bridge:
     throw new Error('No email method configured. Set VITE_LAMBDA_URL or uncomment nostr-mail code.');
+
+    // const NOTIFICATION_EMAIL = DEFAULT_NOTIFICATION_EMAIL;
+    // const nsecLogin = logins.find(l => l.type === 'nsec');
+    // if (!nsecLogin || nsecLogin.type !== 'nsec') {
+    //   throw new Error('Email notification requires nsec login');
+    // }
+    // const decoded = nip19.decode(nsecLogin.data.nsec);
+    // const secretKey = decoded.data as Uint8Array;
+    // const pubkey = await import('nostr-tools/pure').then(m => m.getPublicKey(secretKey));
+    // const npub = nip19.npubEncode(pubkey);
 
     // Uncomment below to re-enable nostr-mail bridge:
     // const fromAddress = `${npub}@uid.ovh`;
@@ -136,7 +138,7 @@ export function useNostrMail() {
     // const ok = results.filter(r => r.status === 'fulfilled').length;
     // if (ok === 0) throw new Error('Email failed to publish to any relay');
     // console.log(`[nostr-mail] Published to ${ok}/${BRIDGE_RELAYS.length} relays`);
-  }, [logins]);
+  }, []);
 
   return { sendReportNotification };
 }

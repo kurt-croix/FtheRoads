@@ -51,7 +51,8 @@ resource "aws_lambda_function" "send_email" {
   }
 }
 
-# Explicit permissions for Function URL public access
+# Permissions for Function URL public access
+# AWS auto-creates FunctionURLAllowPublicAccess — import this into terraform
 resource "aws_lambda_permission" "function_url_invoke" {
   statement_id  = "FunctionURLAllowPublicAccess"
   action        = "lambda:InvokeFunctionUrl"
@@ -59,8 +60,9 @@ resource "aws_lambda_permission" "function_url_invoke" {
   principal     = "*"
 }
 
+# Additional permission required for Function URL to work
 resource "aws_lambda_permission" "function_invoke" {
-  statement_id  = "FunctionAllowPublicAccess"
+  statement_id  = "AllowPublicFunctionInvoke"
   action        = "lambda:InvokeFunction"
   function_name = aws_lambda_function.send_email.function_name
   principal     = "*"
