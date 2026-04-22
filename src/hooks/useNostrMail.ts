@@ -53,7 +53,7 @@ export function useNostrMail() {
     if (report.contactEmail) contactParts.push(report.contactEmail);
     if (report.contactPhone) contactParts.push(report.contactPhone);
     if (contactParts.length > 0) {
-      lines.push(`${report.reporterName} requested follow-up at ${contactParts.join(' or ')}.`);
+      lines.push(`${report.reporterName} requested you follow up with them at ${contactParts.join(' or ')}.`);
     }
 
     if (report.description) {
@@ -73,7 +73,7 @@ export function useNostrMail() {
     }
 
     if (contactParts.length > 0) {
-      htmlLines.push(`<p>${report.reporterName} requested follow-up at ${contactParts.join(' or ')}.</p>`);
+      htmlLines.push(`<p>${report.reporterName} requested you follow up with them at ${contactParts.join(' or ')}.</p>`);
     }
 
     if (report.description) {
