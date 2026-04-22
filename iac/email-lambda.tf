@@ -51,15 +51,6 @@ resource "aws_lambda_function" "send_email" {
   }
 }
 
-# AWS auto-creates the InvokeFunctionUrl permission with the correct condition.
-# We only need to add InvokeFunction, which the Function URL resource doesn't add.
-resource "aws_lambda_permission" "function_invoke" {
-  statement_id  = "AllowPublicFunctionInvoke"
-  action        = "lambda:InvokeFunction"
-  function_name = aws_lambda_function.send_email.function_name
-  principal     = "*"
-}
-
 # Lambda Function URL (no API Gateway needed)
 resource "aws_lambda_function_url" "send_email" {
   function_name      = aws_lambda_function.send_email.function_name

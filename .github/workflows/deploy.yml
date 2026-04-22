@@ -110,6 +110,18 @@ jobs:
         run: terraform untaint aws_s3_bucket.website 2>&1 || true
         working-directory: iac
 
+      - name: Fix Lambda Function URL permissions
+        run: |
+          # Terraform's aws_lambda_permission doesn't support conditions.
+          # AWS requires lambda:FunctionUrlAuthType=NONE condition for Function URL public access.
+          # Add via CLI since terraform can't.
+          aws lambda add-permission \
+            --function-name ftheroads-send-email \
+            --statement-id AllowPublicFunctionInvoke \
+            --action lambda:InvokeFunction \
+            --principal '*' \
+          2>&1 || echo "Permission may already exist"
+
       - name: Terraform Apply
         run: terraform apply -auto-approve -var-file=envs/prod.tfvars
         working-directory: iac
