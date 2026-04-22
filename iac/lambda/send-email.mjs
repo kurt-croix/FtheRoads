@@ -1,8 +1,16 @@
 const RESEND_API_URL = "https://api.resend.com/emails";
 
+// Lambda Function URL event format uses event.requestContext.http.method
+// and event.headers is lowercase. API Gateway format uses event.httpMethod.
+function getMethod(event) {
+  return event.requestContext?.http?.method || event.httpMethod || "";
+}
+
 export const handler = async (event) => {
+  const method = getMethod(event);
+
   // CORS preflight
-  if (event.httpMethod === "OPTIONS") {
+  if (method === "OPTIONS") {
     return {
       statusCode: 200,
       headers: corsHeaders(),
@@ -10,7 +18,7 @@ export const handler = async (event) => {
     };
   }
 
-  if (event.httpMethod !== "POST") {
+  if (method !== "POST") {
     return { statusCode: 405, body: "Method Not Allowed" };
   }
 
