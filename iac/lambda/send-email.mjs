@@ -32,7 +32,7 @@ export const handler = async (event) => {
     return { statusCode: 400, body: "Invalid JSON" };
   }
 
-  const { to, subject, text } = body;
+  const { to, subject, text, imageUrl } = body;
   if (!to || !subject || !text) {
     return { statusCode: 400, body: "Missing required fields: to, subject, text" };
   }
@@ -44,18 +44,41 @@ export const handler = async (event) => {
   }
 
   try {
+    const emailPayload = {
+      from: "FtheRoads <reports@ftheroads.com>",
+      to: [to],
+      subject,
+      text,
+    };
+
+    // If an image URL was provided, fetch it and attach to the email
+    if (imageUrl) {
+      try {
+        const imgResponse = await fetch(imageUrl);
+        if (imgResponse.ok) {
+          const imgBuffer = await imgResponse.arrayBuffer();
+          const base64 = Buffer.from(imgBuffer).toString("base64");
+          // Determine filename from URL path
+          const urlPath = new URL(imageUrl).pathname;
+          const filename = urlPath.split("/").pop() || "photo.jpg";
+          emailPayload.attachments = [
+            { filename, content: base64, encoding: "base64" },
+          ];
+        } else {
+          console.warn("Could not fetch image:", imageUrl, imgResponse.status);
+        }
+      } catch (imgErr) {
+        console.warn("Image fetch failed, sending without attachment:", imgErr.message);
+      }
+    }
+
     const response = await fetch(RESEND_API_URL, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${apiKey}`,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({
-        from: "FtheRoads <reports@ftheroads.com>",
-        to: [to],
-        subject,
-        text,
-      }),
+      body: JSON.stringify(emailPayload),
     });
 
     const result = await response.json();
