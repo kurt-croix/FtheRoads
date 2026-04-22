@@ -239,6 +239,8 @@ export function ReportForm({ selectedLocation, onLocationSelect, onReportCreated
     user, selectedLocation, title, description, hazardType, severity,
     locationDesc, imageUrl, district, imageFile, publishEvent, uploadFile,
     resetForm, onReportCreated, onClearLocation, toast,
+    wantsFollowUp, contactEmail, contactPhone, hasProfileName, reporterName,
+    author.data, sendReportNotification,
   ]);
 
   if (!selectedLocation) {
