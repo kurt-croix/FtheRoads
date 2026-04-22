@@ -16,12 +16,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { AlertCircle, MapPin, Loader2, X, Upload } from 'lucide-react';
-import { HAZARD_TYPES, SEVERITY_LEVELS, KIND_ROAD_REPORT } from '@/lib/constants';
+import { AlertCircle, MapPin, Loader2, X, Upload, Mail } from 'lucide-react';
+import { HAZARD_TYPES, SEVERITY_LEVELS, KIND_ROAD_REPORT, DISTRICT_EMAIL_MAP, DEFAULT_NOTIFICATION_EMAIL } from '@/lib/constants';
 import { encodeGeohash } from '@/lib/geohash';
 import { lookupRoadDistrict } from '@/lib/jurisdiction';
 import { useNostrMail } from '@/hooks/useNostrMail';
-import { nip19 } from 'nostr-tools';
 import { LoginArea } from '@/components/auth/LoginArea';
 
 interface ReportFormProps {
@@ -53,6 +52,9 @@ export function ReportForm({ selectedLocation, onLocationSelect, onReportCreated
   const [district, setDistrict] = useState('');
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [wantsFollowUp, setWantsFollowUp] = useState(false);
+  const [contactEmail, setContactEmail] = useState('');
+  const [contactPhone, setContactPhone] = useState('');
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -107,6 +109,9 @@ export function ReportForm({ selectedLocation, onLocationSelect, onReportCreated
     setImageUrl('');
     setDistrict('');
     clearImage();
+    setWantsFollowUp(false);
+    setContactEmail('');
+    setContactPhone('');
   }, [clearImage]);
 
   const handleSubmit = useCallback(async () => {
@@ -184,10 +189,10 @@ export function ReportForm({ selectedLocation, onLocationSelect, onReportCreated
         tags,
       });
 
-      // Send email notification via nostr-mail
+      // Send email notification via Lambda
       let emailError: string | undefined;
       try {
-        const reporterNpub = user ? nip19.npubEncode(user.pubkey) : 'unknown';
+        const displayName = author.data?.metadata?.name || reporterName.trim() || 'Anonymous';
         await sendReportNotification({
           title: title || `Road hazard: ${hazardType}`,
           type: hazardType,
@@ -197,7 +202,10 @@ export function ReportForm({ selectedLocation, onLocationSelect, onReportCreated
           lat: selectedLocation.lat,
           lng: selectedLocation.lng,
           district: districtName || undefined,
-          reporterNpub,
+          reporterName: displayName,
+          imageUrl: finalImageUrl || undefined,
+          contactEmail: wantsFollowUp ? contactEmail : undefined,
+          contactPhone: wantsFollowUp ? contactPhone : undefined,
         });
       } catch (err) {
         emailError = err instanceof Error ? err.message : 'Unknown error';
@@ -271,7 +279,7 @@ export function ReportForm({ selectedLocation, onLocationSelect, onReportCreated
         </Button>
       </div>
 
-      {/* Auto-detected district (read-only) */}
+      {/* Auto-detected district and email destination */}
       <div>
         <Label className="text-xs font-medium">Road District</Label>
         <div className="mt-1 h-9 px-3 flex items-center rounded-md border bg-muted/50 text-sm">
@@ -281,6 +289,12 @@ export function ReportForm({ selectedLocation, onLocationSelect, onReportCreated
             <span className="text-muted-foreground italic">Outside Ray County</span>
           )}
         </div>
+        {district && (
+          <div className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
+            <Mail className="h-3 w-3" />
+            <span>Report will be sent to {DISTRICT_EMAIL_MAP[district] ?? DEFAULT_NOTIFICATION_EMAIL}</span>
+          </div>
+        )}
       </div>
 
       {/* Name (only if no profile name set) */}
@@ -403,6 +417,37 @@ export function ReportForm({ selectedLocation, onLocationSelect, onReportCreated
             </label>
           )}
         </div>
+      </div>
+
+      {/* Contact info for follow-up */}
+      <div>
+        <label className="flex items-center gap-2 text-xs font-medium cursor-pointer">
+          <input
+            type="checkbox"
+            checked={wantsFollowUp}
+            onChange={(e) => setWantsFollowUp(e.target.checked)}
+            className="rounded border-gray-300"
+          />
+          Provide contact info for follow-up
+        </label>
+        {wantsFollowUp && (
+          <div className="mt-2 space-y-2">
+            <Input
+              placeholder="Email address"
+              type="email"
+              value={contactEmail}
+              onChange={(e) => setContactEmail(e.target.value)}
+              className="h-9 text-sm"
+            />
+            <Input
+              placeholder="Phone number"
+              type="tel"
+              value={contactPhone}
+              onChange={(e) => setContactPhone(e.target.value)}
+              className="h-9 text-sm"
+            />
+          </div>
+        )}
       </div>
 
       {/* Submit Button */}

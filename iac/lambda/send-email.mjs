@@ -22,16 +22,16 @@ export const handler = async (event) => {
     return { statusCode: 405, body: "Method Not Allowed" };
   }
 
-  // Only allow from FtheRoads domains
-  const origin = event.headers?.origin || event.headers?.Origin || "";
-  const allowed = [
-    "https://ftheroads.com",
-    "https://www.ftheroads.com",
-    "http://localhost:5173",
-  ];
-  if (!allowed.includes(origin)) {
-    return { statusCode: 403, body: "Forbidden" };
-  }
+  // TODO: Uncomment origin check for production. Disabled during development.
+  // Real protections: rate limiting, CAPTCHA, IAM auth (see docs/improvements.md).
+  // const origin = event.headers?.origin || event.headers?.Origin || "";
+  // const allowed = [
+  //   "https://ftheroads.com",
+  //   "https://www.ftheroads.com",
+  // ];
+  // if (!allowed.includes(origin)) {
+  //   return { statusCode: 403, body: "Forbidden" };
+  // }
 
   let body;
   try {
@@ -40,7 +40,7 @@ export const handler = async (event) => {
     return { statusCode: 400, body: "Invalid JSON" };
   }
 
-  const { to, subject, text } = body;
+  const { to, subject, text, imageUrl } = body;
   if (!to || !subject || !text) {
     return { statusCode: 400, body: "Missing required fields: to, subject, text" };
   }
@@ -52,18 +52,42 @@ export const handler = async (event) => {
   }
 
   try {
+    const emailPayload = {
+      from: "FtheRoads <reports@ftheroads.com>",
+      to: [to],
+      subject,
+      text,
+    };
+
+    // If an image URL was provided, fetch it and embed inline via CID
+    if (imageUrl) {
+      try {
+        const imgResponse = await fetch(imageUrl);
+        if (imgResponse.ok) {
+          const imgBuffer = await imgResponse.arrayBuffer();
+          const base64 = Buffer.from(imgBuffer).toString("base64");
+          const urlPath = new URL(imageUrl).pathname;
+          const filename = urlPath.split("/").pop() || "photo.jpg";
+          emailPayload.attachments = [
+            { filename, content: base64, encoding: "base64", content_id: "report-photo" },
+          ];
+          // Build HTML version with inline image
+          emailPayload.html = `<p>${text.replace(/\n/g, "<br>")}</p><p><img src="cid:report-photo" alt="Report photo" style="max-width:600px;border-radius:8px" /></p>`;
+        } else {
+          console.warn("Could not fetch image:", imageUrl, imgResponse.status);
+        }
+      } catch (imgErr) {
+        console.warn("Image fetch failed, sending without attachment:", imgErr.message);
+      }
+    }
+
     const response = await fetch(RESEND_API_URL, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${apiKey}`,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({
-        from: "FtheRoads <reports@ftheroads.com>",
-        to: [to],
-        subject,
-        text,
-      }),
+      body: JSON.stringify(emailPayload),
     });
 
     const result = await response.json();
