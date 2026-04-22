@@ -210,6 +210,7 @@ export function ReportForm({ selectedLocation, onLocationSelect, onReportCreated
           ? `Report published but email failed: ${emailError}`
           : `Your road hazard report has been published to Nostr.${districtName ? ` District: ${districtName}.` : ''}`,
         variant: emailError ? 'destructive' : undefined,
+        duration: emailError ? 15000 : undefined,
       });
 
       resetForm();

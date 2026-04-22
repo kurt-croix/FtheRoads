@@ -55,6 +55,7 @@ resource "aws_lambda_function" "send_email" {
 resource "aws_lambda_function_url" "send_email" {
   function_name      = aws_lambda_function.send_email.function_name
   authorization_type = "NONE"
+  invoke_mode        = "RESPONSE_STREAM"
   cors {
     allow_origins     = ["https://ftheroads.com", "https://www.ftheroads.com", "http://localhost:5173"]
     allow_methods     = ["POST"]
