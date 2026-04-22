@@ -26,7 +26,7 @@ export function useNostrMail() {
     }
 
     const to = DISTRICT_EMAIL_MAP[report.district ?? ''] ?? DEFAULT_NOTIFICATION_EMAIL;
-    const subject = `[FtheRoads] ${report.severity.toUpperCase()}: ${report.title}`;
+    const subject = `[${report.severity.toUpperCase()}] ${report.title}`;
     const reportUrl = `https://ftheroads.com/?lat=${report.lat}&lng=${report.lng}`;
     const mapsUrl = `https://www.google.com/maps?q=${report.lat},${report.lng}`;
     const date = new Date().toLocaleDateString('en-US', {
@@ -40,7 +40,7 @@ export function useNostrMail() {
 
     // Plain text version (coordinates as plain URL)
     const lines: string[] = [
-      `${report.reporterName} reported ${report.severity.toUpperCase()} severity ${typeLabel} on ${date} at ${report.lat}, ${report.lng}${locationPart}.`,
+      `${report.reporterName} reported a ${report.severity.toUpperCase()} severity ${typeLabel} on ${date} at ${report.lat}, ${report.lng}${locationPart}.`,
       '',
       `Link to Report: ${reportUrl}`,
     ];

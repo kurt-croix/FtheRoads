@@ -22,16 +22,15 @@ export const handler = async (event) => {
     return { statusCode: 405, body: "Method Not Allowed" };
   }
 
-  // TODO: Uncomment origin check for production. Disabled during development.
-  // Real protections: rate limiting, CAPTCHA, IAM auth (see docs/improvements.md).
-  // const origin = event.headers?.origin || event.headers?.Origin || "";
-  // const allowed = [
-  //   "https://ftheroads.com",
-  //   "https://www.ftheroads.com",
-  // ];
-  // if (!allowed.includes(origin)) {
-  //   return { statusCode: 403, body: "Forbidden" };
-  // }
+  // Only allow from FtheRoads domains
+  const origin = event.headers?.origin || event.headers?.Origin || "";
+  const allowed = [
+    "https://ftheroads.com",
+    "https://www.ftheroads.com",
+  ];
+  if (!allowed.includes(origin)) {
+    return { statusCode: 403, body: "Forbidden" };
+  }
 
   let body;
   try {
