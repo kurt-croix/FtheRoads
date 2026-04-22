@@ -27,3 +27,21 @@ resource "aws_route53_record" "dmarc" {
   ttl     = 300
   records = [var.resend_dmarc_record]
 }
+
+# MX record for send subdomain — Resend bounce handling
+resource "aws_route53_record" "send_mx" {
+  zone_id = data.aws_route53_zone.selected.zone_id
+  name    = "send.${local.full_domain}"
+  type    = "MX"
+  ttl     = 300
+  records = ["10 feedback-smtp.us-east-1.amazonses.com"]
+}
+
+# SPF record for send subdomain
+resource "aws_route53_record" "send_spf" {
+  zone_id = data.aws_route53_zone.selected.zone_id
+  name    = "send.${local.full_domain}"
+  type    = "TXT"
+  ttl     = 300
+  records = ["v=spf1 include:amazonses.com ~all"]
+}
