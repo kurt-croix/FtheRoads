@@ -40,7 +40,7 @@ export const handler = async (event) => {
     return { statusCode: 400, body: "Invalid JSON" };
   }
 
-  const { to, subject, text, imageUrl } = body;
+  const { to, subject, text, html, imageUrl } = body;
   if (!to || !subject || !text) {
     return { statusCode: 400, body: "Missing required fields: to, subject, text" };
   }
@@ -57,6 +57,8 @@ export const handler = async (event) => {
       to: [to],
       subject,
       text,
+      // Use provided HTML or fall back to plain text
+      html: html || text.replace(/\n/g, "<br>"),
     };
 
     // If an image URL was provided, fetch it and embed inline via CID
@@ -71,8 +73,8 @@ export const handler = async (event) => {
           emailPayload.attachments = [
             { filename, content: base64, encoding: "base64", content_id: "report-photo" },
           ];
-          // Build HTML version with inline image
-          emailPayload.html = `<p>${text.replace(/\n/g, "<br>")}</p><p><img src="cid:report-photo" alt="Report photo" style="max-width:600px;border-radius:8px" /></p>`;
+          // Append inline image to the HTML body
+          emailPayload.html += `<p><img src="cid:report-photo" alt="Report photo" style="max-width:600px;border-radius:8px" /></p>`;
         } else {
           console.warn("Could not fetch image:", imageUrl, imgResponse.status);
         }
