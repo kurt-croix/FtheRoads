@@ -36,8 +36,11 @@ export function useNostrMail() {
     // Capitalize type label for readability (e.g. "pothole" -> "Pothole")
     const typeLabel = report.type.charAt(0).toUpperCase() + report.type.slice(1);
 
+    const locationPart = report.location ? ` (${report.location})` : '';
+
+    // Plain text version (coordinates as plain URL)
     const lines: string[] = [
-      `${report.reporterName} reported ${report.severity.toUpperCase()} severity ${typeLabel} on ${date} at ${report.lat}, ${report.lng}${report.location ? ` (${report.location})` : ''}.`,
+      `${report.reporterName} reported ${report.severity.toUpperCase()} severity ${typeLabel} on ${date} at ${report.lat}, ${report.lng}${locationPart}.`,
       '',
       `Link to Report: ${reportUrl}`,
     ];
@@ -46,7 +49,6 @@ export function useNostrMail() {
       lines.push(`Records indicate this is handled by ${report.district}.`);
     }
 
-    // Follow-up request line
     const contactParts: string[] = [];
     if (report.contactEmail) contactParts.push(report.contactEmail);
     if (report.contactPhone) contactParts.push(report.contactPhone);
@@ -60,13 +62,33 @@ export function useNostrMail() {
 
     const text = lines.join('\n');
 
+    // HTML version with clickable links for coordinates
+    const htmlLines: string[] = [
+      `<p>${report.reporterName} reported <strong>${report.severity.toUpperCase()}</strong> severity ${typeLabel} on ${date} at <a href="${mapsUrl}">${report.lat}, ${report.lng}</a>${locationPart}.</p>`,
+      `<p><a href="${reportUrl}">Link to Report</a></p>`,
+    ];
+
+    if (report.district) {
+      htmlLines.push(`<p>Records indicate this is handled by ${report.district}.</p>`);
+    }
+
+    if (contactParts.length > 0) {
+      htmlLines.push(`<p>${report.reporterName} requested follow-up at ${contactParts.join(' or ')}.</p>`);
+    }
+
+    if (report.description) {
+      htmlLines.push(`<p>${report.description}</p>`);
+    }
+
+    const html = htmlLines.join('\n');
+
     console.log('[email] Sending to:', to, 'subject:', subject);
 
     try {
       const response = await fetch(LAMBDA_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ to, subject, text, imageUrl: report.imageUrl }),
+        body: JSON.stringify({ to, subject, text, html, imageUrl: report.imageUrl }),
       });
 
       if (!response.ok) {
