@@ -257,7 +257,7 @@ export function ReportForm({ selectedLocation, onLocationSelect, onReportCreated
     return (
       <div className="text-center py-4 px-2">
         <AlertCircle className="h-6 w-6 mx-auto mb-2 text-muted-foreground" />
-        <p className="text-sm text-muted-foreground mb-3">Log in to report hazards</p>
+        <p className="text-sm text-muted-foreground mb-3">Sign in to report hazards</p>
         <LoginArea />
       </div>
     );

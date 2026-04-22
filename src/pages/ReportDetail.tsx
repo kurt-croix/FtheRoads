@@ -41,7 +41,7 @@ export default function ReportDetail() {
         <AlertTriangle className="h-12 w-12 mx-auto mb-3 text-muted-foreground" />
         <h2 className="text-xl font-bold mb-2">Report Not Found</h2>
         <p className="text-muted-foreground mb-4">This report may not exist or hasn't propagated to relays yet.</p>
-        <Button onClick={() => navigate('/')}>
+        <Button onClick={() => navigate('/map')}>
           <ArrowLeft className="h-4 w-4 mr-2" /> Back to Map
         </Button>
       </div>
