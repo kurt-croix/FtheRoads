@@ -50,8 +50,9 @@ export function useNostrMail() {
     }
 
     const contactParts: string[] = [];
-    if (report.contactEmail) contactParts.push(report.contactEmail);
-    if (report.contactPhone) contactParts.push(report.contactPhone);
+    if (report.contactEmail?.trim()) contactParts.push(report.contactEmail.trim());
+    if (report.contactPhone?.trim()) contactParts.push(report.contactPhone.trim());
+    console.log('[email] Contact info:', { email: report.contactEmail, phone: report.contactPhone, parts: contactParts });
     if (contactParts.length > 0) {
       lines.push(`${report.reporterName} requested follow-up at ${contactParts.join(' or ')}.`);
     }
