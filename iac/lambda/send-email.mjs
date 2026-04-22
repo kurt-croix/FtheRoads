@@ -59,19 +59,20 @@ export const handler = async (event) => {
       text,
     };
 
-    // If an image URL was provided, fetch it and attach to the email
+    // If an image URL was provided, fetch it and embed inline via CID
     if (imageUrl) {
       try {
         const imgResponse = await fetch(imageUrl);
         if (imgResponse.ok) {
           const imgBuffer = await imgResponse.arrayBuffer();
           const base64 = Buffer.from(imgBuffer).toString("base64");
-          // Determine filename from URL path
           const urlPath = new URL(imageUrl).pathname;
           const filename = urlPath.split("/").pop() || "photo.jpg";
           emailPayload.attachments = [
-            { filename, content: base64, encoding: "base64" },
+            { filename, content: base64, encoding: "base64", content_id: "report-photo" },
           ];
+          // Build HTML version with inline image
+          emailPayload.html = `<p>${text.replace(/\n/g, "<br>")}</p><p><img src="cid:report-photo" alt="Report photo" style="max-width:600px;border-radius:8px" /></p>`;
         } else {
           console.warn("Could not fetch image:", imageUrl, imgResponse.status);
         }
