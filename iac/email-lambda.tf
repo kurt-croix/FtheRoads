@@ -51,11 +51,33 @@ resource "aws_lambda_function" "send_email" {
   }
 }
 
+# Explicit permissions for Function URL public access
+# Scoped to Function URL invocations only — not direct API calls
+resource "aws_lambda_permission" "function_url_invoke" {
+  statement_id  = "FunctionURLAllowPublicAccess"
+  action        = "lambda:InvokeFunctionUrl"
+  function_name = aws_lambda_function.send_email.function_name
+  principal     = "*"
+}
+
+resource "aws_lambda_permission" "function_invoke" {
+  statement_id  = "FunctionAllowPublicAccess"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.send_email.function_name
+  principal     = "*"
+
+  condition {
+    test     = "StringEquals"
+    variable = "lambda:FunctionUrlAuthType"
+    values   = ["NONE"]
+  }
+}
+
 # Lambda Function URL (no API Gateway needed)
 resource "aws_lambda_function_url" "send_email" {
   function_name      = aws_lambda_function.send_email.function_name
   authorization_type = "NONE"
-  invoke_mode        = "RESPONSE_STREAM"
+  invoke_mode        = "BUFFERED"
   cors {
     allow_origins     = ["https://ftheroads.com", "https://www.ftheroads.com", "http://localhost:5173"]
     allow_methods     = ["POST"]
