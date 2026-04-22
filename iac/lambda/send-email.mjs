@@ -22,16 +22,8 @@ export const handler = async (event) => {
     return { statusCode: 405, body: "Method Not Allowed" };
   }
 
-  // Only allow from FtheRoads domains
-  const origin = event.headers?.origin || event.headers?.Origin || "";
-  const allowed = [
-    "https://ftheroads.com",
-    "https://www.ftheroads.com",
-    "http://localhost:5173",
-  ];
-  if (!allowed.includes(origin)) {
-    return { statusCode: 403, body: "Forbidden" };
-  }
+  // Origin check removed — not real security (easily spoofed).
+  // Real protections: rate limiting, CAPTCHA, IAM auth (see docs/improvements.md).
 
   let body;
   try {
