@@ -110,6 +110,11 @@ jobs:
         run: terraform untaint aws_s3_bucket.website 2>&1 || true
         working-directory: iac
 
+      - name: Import existing Lambda permissions
+        run: |
+          terraform import aws_lambda_permission.function_url_invoke ftheroads-send-email/FunctionURLAllowPublicAccess 2>&1 || true
+        working-directory: iac
+
       - name: Terraform Apply
         run: terraform apply -auto-approve -var-file=envs/prod.tfvars
         working-directory: iac

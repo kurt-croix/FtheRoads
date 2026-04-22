@@ -51,7 +51,8 @@ resource "aws_lambda_function" "send_email" {
   }
 }
 
-# Explicit permissions for Function URL public access
+# Permissions for Function URL public access
+# AWS auto-creates FunctionURLAllowPublicAccess — import this into terraform
 resource "aws_lambda_permission" "function_url_invoke" {
   statement_id  = "FunctionURLAllowPublicAccess"
   action        = "lambda:InvokeFunctionUrl"
@@ -59,8 +60,9 @@ resource "aws_lambda_permission" "function_url_invoke" {
   principal     = "*"
 }
 
+# Additional permission required for Function URL to work
 resource "aws_lambda_permission" "function_invoke" {
-  statement_id  = "FunctionAllowPublicAccess"
+  statement_id  = "AllowPublicFunctionInvoke"
   action        = "lambda:InvokeFunction"
   function_name = aws_lambda_function.send_email.function_name
   principal     = "*"
@@ -72,7 +74,7 @@ resource "aws_lambda_function_url" "send_email" {
   authorization_type = "NONE"
   invoke_mode        = "BUFFERED"
   cors {
-    allow_origins     = ["https://ftheroads.com", "https://www.ftheroads.com", "http://localhost:5173"]
+    allow_origins     = ["https://ftheroads.com", "https://www.ftheroads.com", "http://localhost:5173", "http://localhost:8080"]
     allow_methods     = ["POST"]
     allow_headers     = ["Content-Type"]
     max_age           = 86400
