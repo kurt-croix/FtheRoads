@@ -44,7 +44,7 @@ type MailMode = 'nostr' | 'resend' | 'both';
 
 const MAIL_MODE: MailMode =
   (import.meta.env.VITE_MAIL_MODE as MailMode | undefined) ??
-  (import.meta.env.DEV ? 'nostr' : 'nostr');
+  'nostr';
 
 interface ReportNotification {
   title: string;
