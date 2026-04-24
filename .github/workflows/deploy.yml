@@ -2,7 +2,7 @@ name: Deploy
 # Deploys to S3/CloudFront and GitHub Pages
 on:
   push:
-    branches: [master, main, feat/**, feature/**]
+    branches: ['**']
     paths:
       - 'iac/**'
       - 'src/**'
@@ -13,6 +13,10 @@ on:
       - 'vite.config.ts'
       - '.github/workflows/deploy.yml'
   workflow_dispatch:
+
+concurrency:
+  group: deploy
+  cancel-in-progress: false
 
 permissions:
   id-token: write
