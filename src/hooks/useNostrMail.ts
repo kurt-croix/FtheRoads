@@ -232,9 +232,26 @@ export function useNostrMail() {
     // Self-copy: wrap for ourselves
     const selfCopyEvent = wrapEvent(emailEvent, secretKey, pubkey);
 
-    // Publish to uid.ovh bridge relays via SimplePool (with NIP-42 auth)
+    // --- Publish gift-wrapped events to bridge relays ---
+    // uid.ovh relays require NIP-42 auth. We publish via two paths:
+    // 1. NPool (primary): handles NIP-42 auth via NostrProvider's auth callback,
+    //    and we explicitly target nostr-01.uid.ovh to ensure the bridge sees events.
+    // 2. SimplePool (broad): publishes to all discovered relays as backup coverage.
+
+    const uidRelays = ['wss://nostr-01.uid.ovh'];
+
+    // Primary: NPool publish to uid.ovh relays with NIP-42 auth support
+    try {
+      await nostr.event(wrappedEvent, { relays: uidRelays, signal: AbortSignal.timeout(15000) });
+      await nostr.event(selfCopyEvent, { relays: uidRelays, signal: AbortSignal.timeout(15000) });
+      console.log(`[nostr-mail] NPool publish to uid.ovh succeeded`);
+    } catch (err) {
+      console.warn('[nostr-mail] NPool publish to uid.ovh failed:', err);
+    }
+
+    // Broad: SimplePool to all discovered + default relays (auth via onauth)
     const targetRelays = await getTargetRelays();
-    console.log(`[nostr-mail] Publishing to ${targetRelays.length} bridge relays:`, targetRelays);
+    console.log(`[nostr-mail] SimplePool publishing to ${targetRelays.length} relays`);
 
     const pool = new SimplePool();
     const authHandler = async (authEvent: Parameters<typeof finalizeEvent>[0]) => {
@@ -242,27 +259,17 @@ export function useNostrMail() {
     };
 
     try {
-      // Publish both events to bridge relays
       const allPromises = [
         ...pool.publish(targetRelays, wrappedEvent, { onauth: authHandler }),
         ...pool.publish(targetRelays, selfCopyEvent, { onauth: authHandler }),
       ];
       const results = await Promise.allSettled(allPromises);
       const ok = results.filter(r => r.status === 'fulfilled').length;
-      console.log(`[nostr-mail] ${ok}/${allPromises.length} publishes succeeded`);
+      console.log(`[nostr-mail] SimplePool ${ok}/${allPromises.length} publishes succeeded`);
     } catch (err) {
       console.warn('[nostr-mail] SimplePool publish error:', err);
     } finally {
       pool.destroy();
-    }
-
-    // Also publish via NPool as backup (reaches app's configured relays)
-    try {
-      await nostr.event(wrappedEvent, { signal: AbortSignal.timeout(10000) });
-      await nostr.event(selfCopyEvent, { signal: AbortSignal.timeout(10000) });
-      console.log(`[nostr-mail] NPool backup publish done`);
-    } catch (err) {
-      console.warn('[nostr-mail] NPool backup publish error:', err);
     }
   }, [logins, buildEmailParts, getTargetRelays]);
 
