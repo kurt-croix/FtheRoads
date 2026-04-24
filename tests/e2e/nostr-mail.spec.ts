@@ -110,8 +110,8 @@ test('nostr-mail: login, submit, verify relay delivery', async ({ page }) => {
   console.log('[test] All checks passed!');
 });
 
-test.skip(!RUN_NMAIL, 'Set TEST_NMAIL=true to enable');
 test('check nmail for sent/delivered email', async ({ browser }) => {
+  test.skip(!RUN_NMAIL, 'Set TEST_NMAIL=true to enable');
   const { nip19 } = await import('nostr-tools');
   const { getPublicKey } = await import('nostr-tools/pure');
   const decoded = nip19.decode(TEST_NSEC);
