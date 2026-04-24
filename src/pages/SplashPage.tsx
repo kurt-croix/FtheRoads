@@ -164,6 +164,23 @@ export default function SplashPage() {
                   <strong className="text-white"> You own your identity.</strong>
                 </span>
               </li>
+              <li className="flex items-start gap-2">
+                <span className="text-purple-400 mt-0.5 shrink-0">4.</span>
+                <span>
+                  <strong className="text-white">Save your private key!</strong>{' '}
+                  Your report is sent as an encrypted email via{' '}
+                  <a
+                    href="https://app.nostrmail.org/"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-purple-400 hover:text-purple-300 underline"
+                  >
+                    Nmail
+                  </a>
+                  . Log in there with your private key to view sent reports and
+                  any replies from road districts.
+                </span>
+              </li>
             </ul>
           </section>
 

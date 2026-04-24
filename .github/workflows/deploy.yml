@@ -2,7 +2,7 @@ name: Deploy
 # Deploys to S3/CloudFront and GitHub Pages
 on:
   push:
-    branches: [master, main, feature/**]
+    branches: [master, main, feat/**, feature/**]
     paths:
       - 'iac/**'
       - 'src/**'

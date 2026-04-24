@@ -185,21 +185,8 @@ resource "aws_cloudfront_distribution" "website" {
   }
 }
 
-# CloudFront cache invalidation - runs on every deploy
-resource "null_resource" "invalidate_cache" {
-  count = var.enable_https ? 1 : 0
-
-  triggers = {
-    distribution_id = aws_cloudfront_distribution.website[0].id
-    run_hash        = timestamp()
-  }
-
-  provisioner "local-exec" {
-    command = "aws cloudfront create-invalidation --distribution-id ${aws_cloudfront_distribution.website[0].id} --paths '/*'"
-  }
-
-  depends_on = [aws_cloudfront_distribution.website]
-}
+# CloudFront cache invalidation is handled by the CI pipeline (deploy.yml)
+# after terraform apply + S3 sync, so no null_resource needed here.
 
 # Route53 A record pointing to CloudFront distribution
 resource "aws_route53_record" "www" {

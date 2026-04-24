@@ -41,20 +41,35 @@ export function ReportForm({ selectedLocation, onLocationSelect, onReportCreated
   const author = useAuthor(user?.pubkey);
   const hasProfileName = !!author.data?.metadata?.name;
 
+  // Pre-fill random test data in dev mode so you can submit faster
+  const testDefaults = import.meta.env.DEV
+    ? {
+        title: `Test pothole #${Math.floor(Math.random() * 900 + 100)}`,
+        reporterName: 'Test Reporter',
+        description: 'Large pothole near the intersection, about 2ft wide. Cars swerving to avoid it.',
+        hazardType: 'pothole',
+        severity: 'high',
+        locationDesc: 'Main St near Oak Ave',
+        contactEmail: 'test@example.com',
+        contactPhone: '555-123-4567',
+        wantsFollowUp: true,
+      }
+    : null;
+
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [title, setTitle] = useState('');
-  const [reporterName, setReporterName] = useState('');
-  const [description, setDescription] = useState('');
-  const [hazardType, setHazardType] = useState('');
-  const [severity, setSeverity] = useState('');
-  const [locationDesc, setLocationDesc] = useState('');
+  const [title, setTitle] = useState(testDefaults?.title ?? '');
+  const [reporterName, setReporterName] = useState(testDefaults?.reporterName ?? '');
+  const [description, setDescription] = useState(testDefaults?.description ?? '');
+  const [hazardType, setHazardType] = useState(testDefaults?.hazardType ?? '');
+  const [severity, setSeverity] = useState(testDefaults?.severity ?? '');
+  const [locationDesc, setLocationDesc] = useState(testDefaults?.locationDesc ?? '');
   const [imageUrl, setImageUrl] = useState('');
   const [district, setDistrict] = useState('');
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
-  const [wantsFollowUp, setWantsFollowUp] = useState(false);
-  const [contactEmail, setContactEmail] = useState('');
-  const [contactPhone, setContactPhone] = useState('');
+  const [wantsFollowUp, setWantsFollowUp] = useState(testDefaults?.wantsFollowUp ?? false);
+  const [contactEmail, setContactEmail] = useState(testDefaults?.contactEmail ?? '');
+  const [contactPhone, setContactPhone] = useState(testDefaults?.contactPhone ?? '');
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
