@@ -55,10 +55,15 @@ resource "aws_lambda_function" "send_email" {
 resource "aws_lambda_function_url" "send_email" {
   function_name      = aws_lambda_function.send_email.function_name
   authorization_type = "NONE"
+  invoke_mode        = "BUFFERED"
   cors {
-    allow_origins     = ["https://ftheroads.com", "https://www.ftheroads.com", "http://localhost:5173"]
+    allow_origins     = ["https://ftheroads.com", "https://www.ftheroads.com", "http://localhost:5173", "http://localhost:8080"]
     allow_methods     = ["POST"]
     allow_headers     = ["Content-Type"]
     max_age           = 86400
   }
+}
+
+output "lambda_function_url" {
+  value = aws_lambda_function_url.send_email.function_url
 }

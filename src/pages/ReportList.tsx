@@ -87,12 +87,12 @@ export function ReportListPage() {
       <div className="sticky top-0 z-50 bg-background/80 backdrop-blur-xl border-b">
         <div className="container max-w-4xl mx-auto px-4 py-3">
           <div className="flex items-center gap-3">
-            <Button variant="ghost" size="sm" onClick={() => navigate('/')} className="h-8 w-8 p-0">
+            <Button variant="ghost" size="sm" onClick={() => navigate('/map')} className="h-8 w-8 p-0">
               <ArrowLeft className="h-4 w-4" />
             </Button>
             <h1 className="font-bold text-lg">All Reports</h1>
             <div className="ml-auto flex gap-2">
-              <Button variant="ghost" size="sm" onClick={() => navigate('/')} className="h-8 text-xs">
+              <Button variant="ghost" size="sm" onClick={() => navigate('/map')} className="h-8 text-xs">
                 <Map className="h-4 w-4 mr-1" /> Map
               </Button>
             </div>

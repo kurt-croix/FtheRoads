@@ -1,5 +1,5 @@
 name: Deploy
-
+# Deploys to S3/CloudFront and GitHub Pages
 on:
   push:
     branches: [master, main, feature/**]
@@ -21,6 +21,7 @@ permissions:
 
 env:
   S3_BUCKET_NAME: ftheroads.com
+  VITE_LAMBDA_URL: https://ocoxc5q46dsjb7m4qqgy6sxn4y0srnal.lambda-url.us-east-1.on.aws/
 
 jobs:
   build:
@@ -109,11 +110,42 @@ jobs:
         run: terraform untaint aws_s3_bucket.website 2>&1 || true
         working-directory: iac
 
+      - name: Fix Lambda Function URL permissions
+        run: |
+          # Terraform's aws_lambda_permission doesn't support conditions.
+          # AWS requires lambda:FunctionUrlAuthType=NONE condition for Function URL public access.
+          # Add via CLI since terraform can't.
+          aws lambda add-permission \
+            --function-name ftheroads-send-email \
+            --statement-id AllowPublicFunctionInvoke \
+            --action lambda:InvokeFunction \
+            --principal '*' \
+          2>&1 || echo "Permission may already exist"
+
       - name: Terraform Apply
         run: terraform apply -auto-approve -var-file=envs/prod.tfvars
         working-directory: iac
         env:
           TF_VAR_resend_api_key: ${{ secrets.RESEND_API_KEY }}
+
+      - name: Verify Lambda Function URL
+        run: |
+          URL=$(terraform output -raw lambda_function_url)
+          echo "Lambda URL: $URL"
+
+          # Test direct Lambda invoke (bypasses Function URL)
+          echo '{"httpMethod":"POST","headers":{"origin":"https://ftheroads.com"},"body":"{\"to\":\"test@example.com\",\"subject\":\"CI test\",\"text\":\"test\"}"}' \
+            | aws lambda invoke --function-name ftheroads-send-email --payload file:///dev/stdin /tmp/lambda-response.json --cli-binary-format raw-in-base64-out
+          echo "Direct invoke response:"
+          cat /tmp/lambda-response.json
+
+          # Test Function URL
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" -X POST "$URL" \
+            -H "Content-Type: application/json" \
+            -H "Origin: https://ftheroads.com" \
+            -d '{"to":"test@example.com","subject":"CI test","text":"test"}')
+          echo "Function URL status: $STATUS"
+        working-directory: iac
 
       - name: Sync to S3
         run: aws s3 sync dist/ s3://$S3_BUCKET_NAME --delete

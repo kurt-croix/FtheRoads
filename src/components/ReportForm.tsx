@@ -16,12 +16,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { AlertCircle, MapPin, Loader2, X, Upload } from 'lucide-react';
-import { HAZARD_TYPES, SEVERITY_LEVELS, KIND_ROAD_REPORT } from '@/lib/constants';
+import { AlertCircle, MapPin, Loader2, X, Upload, Mail } from 'lucide-react';
+import { HAZARD_TYPES, SEVERITY_LEVELS, KIND_ROAD_REPORT, DISTRICT_EMAIL_MAP, DEFAULT_NOTIFICATION_EMAIL } from '@/lib/constants';
 import { encodeGeohash } from '@/lib/geohash';
 import { lookupRoadDistrict } from '@/lib/jurisdiction';
 import { useNostrMail } from '@/hooks/useNostrMail';
-import { nip19 } from 'nostr-tools';
 import { LoginArea } from '@/components/auth/LoginArea';
 
 interface ReportFormProps {
@@ -42,17 +41,35 @@ export function ReportForm({ selectedLocation, onLocationSelect, onReportCreated
   const author = useAuthor(user?.pubkey);
   const hasProfileName = !!author.data?.metadata?.name;
 
+  // Pre-fill random test data in dev mode so you can submit faster
+  const testDefaults = import.meta.env.DEV
+    ? {
+        title: `Test pothole #${Math.floor(Math.random() * 900 + 100)}`,
+        reporterName: 'Test Reporter',
+        description: 'Large pothole near the intersection, about 2ft wide. Cars swerving to avoid it.',
+        hazardType: 'pothole',
+        severity: 'high',
+        locationDesc: 'Main St near Oak Ave',
+        contactEmail: 'test@example.com',
+        contactPhone: '555-123-4567',
+        wantsFollowUp: true,
+      }
+    : null;
+
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [title, setTitle] = useState('');
-  const [reporterName, setReporterName] = useState('');
-  const [description, setDescription] = useState('');
-  const [hazardType, setHazardType] = useState('');
-  const [severity, setSeverity] = useState('');
-  const [locationDesc, setLocationDesc] = useState('');
+  const [title, setTitle] = useState(testDefaults?.title ?? '');
+  const [reporterName, setReporterName] = useState(testDefaults?.reporterName ?? '');
+  const [description, setDescription] = useState(testDefaults?.description ?? '');
+  const [hazardType, setHazardType] = useState(testDefaults?.hazardType ?? '');
+  const [severity, setSeverity] = useState(testDefaults?.severity ?? '');
+  const [locationDesc, setLocationDesc] = useState(testDefaults?.locationDesc ?? '');
   const [imageUrl, setImageUrl] = useState('');
   const [district, setDistrict] = useState('');
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [wantsFollowUp, setWantsFollowUp] = useState(testDefaults?.wantsFollowUp ?? false);
+  const [contactEmail, setContactEmail] = useState(testDefaults?.contactEmail ?? '');
+  const [contactPhone, setContactPhone] = useState(testDefaults?.contactPhone ?? '');
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -107,6 +124,9 @@ export function ReportForm({ selectedLocation, onLocationSelect, onReportCreated
     setImageUrl('');
     setDistrict('');
     clearImage();
+    setWantsFollowUp(false);
+    setContactEmail('');
+    setContactPhone('');
   }, [clearImage]);
 
   const handleSubmit = useCallback(async () => {
@@ -184,10 +204,10 @@ export function ReportForm({ selectedLocation, onLocationSelect, onReportCreated
         tags,
       });
 
-      // Send email notification via nostr-mail
+      // Send email notification via Lambda
       let emailError: string | undefined;
       try {
-        const reporterNpub = user ? nip19.npubEncode(user.pubkey) : 'unknown';
+        const displayName = author.data?.metadata?.name || reporterName.trim() || 'Anonymous';
         await sendReportNotification({
           title: title || `Road hazard: ${hazardType}`,
           type: hazardType,
@@ -197,7 +217,10 @@ export function ReportForm({ selectedLocation, onLocationSelect, onReportCreated
           lat: selectedLocation.lat,
           lng: selectedLocation.lng,
           district: districtName || undefined,
-          reporterNpub,
+          reporterName: displayName,
+          imageUrl: finalImageUrl || undefined,
+          contactEmail: wantsFollowUp ? contactEmail : undefined,
+          contactPhone: wantsFollowUp ? contactPhone : undefined,
         });
       } catch (err) {
         emailError = err instanceof Error ? err.message : 'Unknown error';
@@ -210,6 +233,7 @@ export function ReportForm({ selectedLocation, onLocationSelect, onReportCreated
           ? `Report published but email failed: ${emailError}`
           : `Your road hazard report has been published to Nostr.${districtName ? ` District: ${districtName}.` : ''}`,
         variant: emailError ? 'destructive' : undefined,
+        duration: emailError ? 15000 : undefined,
       });
 
       resetForm();
@@ -230,6 +254,8 @@ export function ReportForm({ selectedLocation, onLocationSelect, onReportCreated
     user, selectedLocation, title, description, hazardType, severity,
     locationDesc, imageUrl, district, imageFile, publishEvent, uploadFile,
     resetForm, onReportCreated, onClearLocation, toast,
+    wantsFollowUp, contactEmail, contactPhone, hasProfileName, reporterName,
+    author.data, sendReportNotification,
   ]);
 
   if (!selectedLocation) {
@@ -246,7 +272,7 @@ export function ReportForm({ selectedLocation, onLocationSelect, onReportCreated
     return (
       <div className="text-center py-4 px-2">
         <AlertCircle className="h-6 w-6 mx-auto mb-2 text-muted-foreground" />
-        <p className="text-sm text-muted-foreground mb-3">Log in to report hazards</p>
+        <p className="text-sm text-muted-foreground mb-3">Sign in to report hazards</p>
         <LoginArea />
       </div>
     );
@@ -270,7 +296,7 @@ export function ReportForm({ selectedLocation, onLocationSelect, onReportCreated
         </Button>
       </div>
 
-      {/* Auto-detected district (read-only) */}
+      {/* Auto-detected district and email destination */}
       <div>
         <Label className="text-xs font-medium">Road District</Label>
         <div className="mt-1 h-9 px-3 flex items-center rounded-md border bg-muted/50 text-sm">
@@ -280,6 +306,12 @@ export function ReportForm({ selectedLocation, onLocationSelect, onReportCreated
             <span className="text-muted-foreground italic">Outside Ray County</span>
           )}
         </div>
+        {district && (
+          <div className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
+            <Mail className="h-3 w-3" />
+            <span>Report will be sent to {DISTRICT_EMAIL_MAP[district] ?? DEFAULT_NOTIFICATION_EMAIL}</span>
+          </div>
+        )}
       </div>
 
       {/* Name (only if no profile name set) */}
@@ -402,6 +434,37 @@ export function ReportForm({ selectedLocation, onLocationSelect, onReportCreated
             </label>
           )}
         </div>
+      </div>
+
+      {/* Contact info for follow-up */}
+      <div>
+        <label className="flex items-center gap-2 text-xs font-medium cursor-pointer">
+          <input
+            type="checkbox"
+            checked={wantsFollowUp}
+            onChange={(e) => setWantsFollowUp(e.target.checked)}
+            className="rounded border-gray-300"
+          />
+          Provide contact info for follow-up
+        </label>
+        {wantsFollowUp && (
+          <div className="mt-2 space-y-2">
+            <Input
+              placeholder="Email address"
+              type="email"
+              value={contactEmail}
+              onChange={(e) => setContactEmail(e.target.value)}
+              className="h-9 text-sm"
+            />
+            <Input
+              placeholder="Phone number"
+              type="tel"
+              value={contactPhone}
+              onChange={(e) => setContactPhone(e.target.value)}
+              className="h-9 text-sm"
+            />
+          </div>
+        )}
       </div>
 
       {/* Submit Button */}
