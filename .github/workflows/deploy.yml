@@ -2,7 +2,7 @@ name: Deploy
 # Deploys to S3/CloudFront and GitHub Pages
 on:
   push:
-    branches: [master, main, feat/**, feature/**]
+    branches: ['**']
     paths:
       - 'iac/**'
       - 'src/**'
@@ -13,6 +13,10 @@ on:
       - 'vite.config.ts'
       - '.github/workflows/deploy.yml'
   workflow_dispatch:
+
+concurrency:
+  group: deploy
+  cancel-in-progress: false
 
 permissions:
   id-token: write
@@ -81,8 +85,8 @@ jobs:
   terraform-apply:
     runs-on: ubuntu-latest
     needs: [build, terraform-plan]
-    # Apply ONLY on master/main
-    if: github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main'
+    # Apply ONLY on master
+    if: github.ref == 'refs/heads/master'
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -170,8 +174,8 @@ jobs:
   deploy-pages:
     runs-on: ubuntu-latest
     needs: build
-    # Pages deploys only on main/master
-    if: github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main'
+    # Pages deploys only on master
+    if: github.ref == 'refs/heads/master' 
     environment:
       name: github-pages
       url: ${{ steps.deploy.outputs.page_url }}
