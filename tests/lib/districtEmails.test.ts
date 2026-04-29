@@ -1,81 +1,49 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { loadDistrictEmailConfig, getDistrictEmail } from '@/lib/constants';
+import { describe, it, expect, vi } from 'vitest';
 
-describe('district email config', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    // Reset the module-level _emailConfig by re-importing
-    // Since it's module state, we test getDistrictEmail behavior
+// The config is parsed from YAML at module init time via config.yaml?raw.
+// Since the YAML raw import is mocked at the vitest level, we test getDistrictEmail
+// which was initialized with the real YAML content baked in at import time.
+
+// Mock the config.yaml?raw to provide test data
+vi.mock('../../config.yaml?raw', () => ({
+  default: `
+districtEmails:
+  default: raycountycommissioners@commission.raycountymo.gov
+  districts:
+    County: raycountycommissioners@commission.raycountymo.gov
+    Crystal Lakes: raycountycommissioners@commission.raycountymo.gov
+    Camden: vasmithey@gmail.com
+    Lawson: shookdld@aol.com
+    Excelsior Springs: raycountycommissioners@commission.raycountymo.gov
+    Henrietta: raycountycommissioners@commission.raycountymo.gov
+    Orrick: dnailfarms@gmail.com
+    Richmond: susan_coats@sbcglobal.net
+    Hardin: kodell2008411@gmail.com
+`,
+}));
+
+describe('getDistrictEmail', () => {
+  it('returns district-specific email from config', async () => {
+    const { getDistrictEmail } = await import('@/lib/constants');
+    expect(getDistrictEmail('Richmond')).toBe('susan_coats@sbcglobal.net');
+    expect(getDistrictEmail('Camden')).toBe('vasmithey@gmail.com');
+    expect(getDistrictEmail('Orrick')).toBe('dnailfarms@gmail.com');
   });
 
-  describe('getDistrictEmail (fallback)', () => {
-    it('returns default for unknown district', () => {
-      const email = getDistrictEmail('Unknown Township');
-      expect(email).toBe('croix4clerk@pm.me');
-    });
-
-    it('returns default for undefined district', () => {
-      const email = getDistrictEmail(undefined);
-      expect(email).toBe('croix4clerk@pm.me');
-    });
-
-    it('returns district-specific email from fallback map', () => {
-      // These come from the hardcoded DISTRICT_EMAIL_MAP fallback
-      const richmond = getDistrictEmail('Richmond');
-      expect(richmond).toBeTruthy();
-
-      const camden = getDistrictEmail('Camden');
-      expect(camden).toBeTruthy();
-
-      const orrick = getDistrictEmail('Orrick');
-      expect(orrick).toBeTruthy();
-    });
+  it('returns default for unknown district', async () => {
+    const { getDistrictEmail } = await import('@/lib/constants');
+    expect(getDistrictEmail('Unknown Township')).toBe('raycountycommissioners@commission.raycountymo.gov');
   });
 
-  describe('loadDistrictEmailConfig', () => {
-    it('fetches and loads district-emails.json', async () => {
-      const mockConfig = {
-        default: 'test@example.com',
-        districts: {
-          'Richmond': 'richmond@example.com',
-          'Camden': 'camden@example.com',
-        },
-      };
+  it('returns default for undefined district', async () => {
+    const { getDistrictEmail } = await import('@/lib/constants');
+    expect(getDistrictEmail(undefined)).toBe('raycountycommissioners@commission.raycountymo.gov');
+  });
 
-      global.fetch = vi.fn().mockResolvedValueOnce({
-        ok: true,
-        json: () => Promise.resolve(mockConfig),
-      });
-
-      await loadDistrictEmailConfig();
-
-      expect(global.fetch).toHaveBeenCalledWith('/district-emails.json');
-      // After loading, getDistrictEmail should use the config
-      expect(getDistrictEmail('Richmond')).toBe('richmond@example.com');
-      expect(getDistrictEmail('Unknown')).toBe('test@example.com');
-    });
-
-    it('falls back gracefully on fetch failure', async () => {
-      global.fetch = vi.fn().mockRejectedValueOnce(new Error('network error'));
-
-      // Should not throw
-      await loadDistrictEmailConfig();
-
-      // Fallback map should still work
-      const email = getDistrictEmail('Richmond');
-      expect(email).toBeTruthy();
-    });
-
-    it('falls back gracefully on non-ok response', async () => {
-      global.fetch = vi.fn().mockResolvedValueOnce({
-        ok: false,
-        status: 404,
-      });
-
-      await loadDistrictEmailConfig();
-
-      const email = getDistrictEmail('Richmond');
-      expect(email).toBeTruthy();
-    });
+  it('returns correct email for each known district', async () => {
+    const { getDistrictEmail } = await import('@/lib/constants');
+    expect(getDistrictEmail('Hardin')).toBe('kodell2008411@gmail.com');
+    expect(getDistrictEmail('Lawson')).toBe('shookdld@aol.com');
+    expect(getDistrictEmail('Henrietta')).toBe('raycountycommissioners@commission.raycountymo.gov');
   });
 });

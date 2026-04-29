@@ -13,7 +13,7 @@ import { NostrLoginProvider } from '@nostrify/react/login';
 import { AppProvider } from '@/components/AppProvider';
 import { NWCProvider } from '@/contexts/NWCContext';
 import { AppConfig } from '@/contexts/AppContext';
-import { loadDistrictEmailConfig } from '@/lib/constants';
+
 import AppRouter from './AppRouter';
 
 const head = createHead({
@@ -53,9 +53,6 @@ const defaultConfig: AppConfig = {
 };
 
 export function App() {
-  // Load runtime district email config from /district-emails.json
-  loadDistrictEmailConfig();
-
   return (
     <UnheadProvider head={head}>
       <AppProvider storageKey="nostr:app-config" defaultConfig={defaultConfig} forcedConfig={devRelays ? { relayMetadata: { relays: devRelays, updatedAt: 0 } } : undefined}>

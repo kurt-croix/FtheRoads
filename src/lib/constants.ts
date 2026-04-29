@@ -1,4 +1,7 @@
 // FtheRoads.com - Constants
+import yaml from 'js-yaml';
+// @ts-expect-error — Vite ?raw import returns file content as string
+import configRaw from '../../config.yaml?raw';
 
 /** Nostr event kind for road hazard reports */
 export const KIND_ROAD_REPORT = 1031;
@@ -54,41 +57,17 @@ export const ADMIN_NPUB = 'npub17w98lrsg36nj0cckhxgd52wdlrgnx544lgy4jsg3fwpla7jt
 export const ADMIN_EMAIL = `${ADMIN_NPUB}@uid.ovh`;
 
 /**
- * Road district to notification email mapping.
- * Loaded at runtime from /district-emails.json (public dir).
- * Fallback below is used only if the config fetch fails.
+ * District email config parsed from config.yaml at build time.
+ * Falls back to DEFAULT_NOTIFICATION_EMAIL if config unavailable.
  */
-let _emailConfig: { default: string; districts: Record<string, string> } | null = null;
-
-export async function loadDistrictEmailConfig(): Promise<void> {
-  try {
-    const res = await fetch('/district-emails.json');
-    if (res.ok) {
-      _emailConfig = await res.json();
-      console.log('[config] District email config loaded:', _emailConfig);
-    }
-  } catch {
-    console.warn('[config] Failed to load district-emails.json, using defaults');
-  }
-}
-
-export function getDistrictEmail(district: string | undefined): string {
-  if (_emailConfig) {
-    return _emailConfig.districts[district ?? ''] ?? _emailConfig.default;
-  }
-  // Fallback (dev / config not yet loaded)
-  return DISTRICT_EMAIL_MAP[district ?? ''] ?? DEFAULT_NOTIFICATION_EMAIL;
-}
-
-/** Fallback map used when config hasn't loaded yet */
-const DISTRICT_EMAIL_MAP: Record<string, string> = {
-  'County': 'croix4clerk@pm.me',
-  'Crystal Lakes': 'Croix4Clerk@pm.me',
-  'Camden': 'CROIX4CLERK@pm.me',
-  'Lawson': 'croix4Clerk@pm.me',
-  'Excelsior Springs': 'Croix4clerk@pm.me',
-  'Henrietta': 'CROIX4clerk@pm.me',
-  'Orrick': 'croix4CLERK@pm.me',
-  'Richmond': 'Croix4CLERK@pm.me',
-  'Hardin': 'CROIX4Clerk@pm.me',
+const config = yaml.load(configRaw) as {
+  districtEmails?: { default?: string; districts?: Record<string, string> };
 };
+
+const _districtEmails = config.districtEmails?.districts ?? {};
+const _defaultDistrictEmail = config.districtEmails?.default ?? DEFAULT_NOTIFICATION_EMAIL;
+
+/** Get notification email for a road district */
+export function getDistrictEmail(district: string | undefined): string {
+  return _districtEmails[district ?? ''] ?? _defaultDistrictEmail;
+}

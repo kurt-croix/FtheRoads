@@ -74,7 +74,7 @@ export function useNostrMail() {
    *  In production, emails route to the actual district contacts. */
   const buildEmailParts = useCallback((report: ReportNotification) => {
     // Dev mode: all emails go to default for testing.
-    // Production: load from /district-emails.json config.
+    // Production: loaded from config.yaml at build time.
     const to = import.meta.env.DEV
       ? DEFAULT_NOTIFICATION_EMAIL
       : getDistrictEmail(report.district);
