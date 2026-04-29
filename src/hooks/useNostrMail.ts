@@ -6,6 +6,7 @@ import { getPublicKey, finalizeEvent } from 'nostr-tools/pure';
 import { SimplePool } from 'nostr-tools/pool';
 import { normalizeURL } from 'nostr-tools/utils';
 import { wrapEvent } from 'nostr-tools/nip59';
+import { createMimeMessage } from 'mimetext/browser';
 import { DEFAULT_NOTIFICATION_EMAIL, DISTRICT_EMAIL_MAP } from '@/lib/constants';
 
 // --- uid.ovh nostr-mail bridge (confirmed via NIP-05 at uid.ovh) ---
@@ -44,7 +45,7 @@ type MailMode = 'nostr' | 'resend' | 'both';
 
 const MAIL_MODE: MailMode =
   (import.meta.env.VITE_MAIL_MODE as MailMode | undefined) ??
-  (import.meta.env.DEV ? 'nostr' : 'nostr');
+  'nostr';
 
 interface ReportNotification {
   title: string;
@@ -181,56 +182,41 @@ export function useNostrMail() {
 
     const { to, subject, text, html } = buildEmailParts(report);
 
-    // Build MIME multipart message matching nmail's format closely
-    const boundary = crypto.randomUUID().replace(/-/g, '').slice(0, 16);
-    const messageId = `<${crypto.randomUUID().replace(/-/g, '_')}@uid.ovh>`;
-    // Base64-encode HTML part like nmail does
-    const htmlBase64 = btoa(unescape(encodeURIComponent(html)));
-    const mime = [
-      `From: ${fromAddress}`,
-      `To: ${to}`,
-      `Date: ${new Date().toUTCString()}`,
-      `Message-Id: ${messageId}`,
-      `Subject: ${subject}`,
-      'MIME-Version: 1.0',
-      `Content-Type: multipart/alternative; boundary="${boundary}"`,
-      '',
-      `--${boundary}`,
-      'Content-Type: text/plain; charset="utf-8"',
-      'Content-Transfer-Encoding: 7bit',
-      '',
-      text,
-      '',
-      `--${boundary}`,
-      'Content-Type: text/html; charset="utf-8"',
-      'Content-Transfer-Encoding: base64',
-      '',
-      htmlBase64,
-      `--${boundary}--`,
-    ].join('\r\n');
+    // Build RFC 2822 MIME email matching the format nmail sends.
+    // The bridge (uid.ovh) parses MIME with postal-mime and validates From: against the sender's npub.
+    // Format must match nmail exactly: From with display name, Message-Id, multipart/alternative.
+    const msg = createMimeMessage();
+    msg.setSender({ name: report.reporterName, addr: fromAddress });
+    msg.setRecipient(to);
+    msg.setSubject(subject);
+    msg.setHeader('Message-Id', `<${crypto.randomUUID()}@uid.ovh>`);
+    msg.addMessage({ contentType: 'text/plain', data: text });
+    msg.addMessage({ contentType: 'text/html', data: html });
+    const mime = msg.asRaw();
 
-    // Build the kind 1301 email event with bridge routing tags
-    const emailEvent = {
+    // Build the kind 1301 email event.
+    // Keep tags minimal — nmail only uses a single 'p' tag for the recipient.
+    // Extra tags (subject, from, to, etc.) cause the bridge to reject the event.
+    const bridgeEvent = {
       kind: 1301,
       created_at: Math.floor(Date.now() / 1000),
-      tags: [
-        ['p', BRIDGE_PUBKEY],
-        ['subject', subject],
-        ['from', fromAddress],
-        ['to', to],
-        ['date', Math.floor(Date.now() / 1000).toString()],
-        ['mail-from', fromAddress],
-        ['rcpt-to', to],
-      ],
+      tags: [['p', BRIDGE_PUBKEY]],
+      content: mime,
+    };
+
+    const selfCopyEvent = {
+      kind: 1301,
+      created_at: Math.floor(Date.now() / 1000),
+      tags: [['p', pubkey]],
       content: mime,
     };
 
     // NIP-59 gift wrapping via nostr-tools (signs the seal correctly)
-    const wrappedEvent = wrapEvent(emailEvent, secretKey, BRIDGE_PUBKEY);
+    const wrappedEvent = wrapEvent(bridgeEvent, secretKey, BRIDGE_PUBKEY);
     console.log(`[nostr-mail] Gift-wrapped event ${wrappedEvent.id.slice(0, 12)}`);
 
     // Self-copy: wrap for ourselves
-    const selfCopyEvent = wrapEvent(emailEvent, secretKey, pubkey);
+    const selfWrappedEvent = wrapEvent(selfCopyEvent, secretKey, pubkey);
 
     // --- Publish gift-wrapped events to bridge relays ---
     // uid.ovh relays require NIP-42 auth. We publish via two paths:
@@ -243,7 +229,7 @@ export function useNostrMail() {
     // Primary: NPool publish to uid.ovh relays with NIP-42 auth support
     try {
       await nostr.event(wrappedEvent, { relays: uidRelays, signal: AbortSignal.timeout(15000) });
-      await nostr.event(selfCopyEvent, { relays: uidRelays, signal: AbortSignal.timeout(15000) });
+      await nostr.event(selfWrappedEvent, { relays: uidRelays, signal: AbortSignal.timeout(15000) });
       console.log(`[nostr-mail] NPool publish to uid.ovh succeeded`);
     } catch (err) {
       console.warn('[nostr-mail] NPool publish to uid.ovh failed:', err);
@@ -261,7 +247,7 @@ export function useNostrMail() {
     try {
       const allPromises = [
         ...pool.publish(targetRelays, wrappedEvent, { onauth: authHandler }),
-        ...pool.publish(targetRelays, selfCopyEvent, { onauth: authHandler }),
+        ...pool.publish(targetRelays, selfWrappedEvent, { onauth: authHandler }),
       ];
       const results = await Promise.allSettled(allPromises);
       const ok = results.filter(r => r.status === 'fulfilled').length;
