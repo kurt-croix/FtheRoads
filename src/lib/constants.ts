@@ -38,14 +38,50 @@ export const REPORT_STATUSES = [
   { value: 'fixed', label: 'Fixed' },
 ] as const;
 
-/** Default email for notifications */
+/** Default email for notifications (fallback for districts without a contact) */
 export const DEFAULT_NOTIFICATION_EMAIL = 'croix4clerk@pm.me';
 
 /** Polygon data for district boundaries */
 export { default as DISTRICT_POLYGONS } from '@/data/rayCountyTownships.json';
 
-/** Road district to notification email mapping */
-export const DISTRICT_EMAIL_MAP: Record<string, string> = {
+/**
+ * Admin npub for error notifications (nostr DM) and BCC on report emails.
+ * Receives a NIP-17 DM when report/email errors occur.
+ */
+export const ADMIN_NPUB = 'npub17w98lrsg36nj0cckhxgd52wdlrgnx544lgy4jsg3fwpla7jtvlaqgjdrc6';
+
+/** Admin nostr-mail address (uid.ovh bridge resolves npub → mailbox) */
+export const ADMIN_EMAIL = `${ADMIN_NPUB}@uid.ovh`;
+
+/**
+ * Road district to notification email mapping.
+ * Loaded at runtime from /district-emails.json (public dir).
+ * Fallback below is used only if the config fetch fails.
+ */
+let _emailConfig: { default: string; districts: Record<string, string> } | null = null;
+
+export async function loadDistrictEmailConfig(): Promise<void> {
+  try {
+    const res = await fetch('/district-emails.json');
+    if (res.ok) {
+      _emailConfig = await res.json();
+      console.log('[config] District email config loaded:', _emailConfig);
+    }
+  } catch {
+    console.warn('[config] Failed to load district-emails.json, using defaults');
+  }
+}
+
+export function getDistrictEmail(district: string | undefined): string {
+  if (_emailConfig) {
+    return _emailConfig.districts[district ?? ''] ?? _emailConfig.default;
+  }
+  // Fallback (dev / config not yet loaded)
+  return DISTRICT_EMAIL_MAP[district ?? ''] ?? DEFAULT_NOTIFICATION_EMAIL;
+}
+
+/** Fallback map used when config hasn't loaded yet */
+const DISTRICT_EMAIL_MAP: Record<string, string> = {
   'County': 'croix4clerk@pm.me',
   'Crystal Lakes': 'Croix4Clerk@pm.me',
   'Camden': 'CROIX4CLERK@pm.me',
