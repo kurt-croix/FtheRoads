@@ -14,8 +14,11 @@ import {
   Menu,
   X,
   ChevronRight,
+  Plus,
 } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useIsMobile } from '@/hooks/useIsMobile';
+import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet';
 
 const ReportMap = lazy(() =>
   import('@/components/ReportMap').then(m => ({ default: m.ReportMap }))
@@ -28,8 +31,8 @@ function Header() {
   const navigate = useNavigate();
   return (
     <header className="sticky top-0 z-50 bg-gradient-to-r from-gray-900 via-gray-800 to-gray-900 border-b border-gray-700/50 shadow-2xl">
-      <div className="container mx-auto px-4">
-        <div className="flex items-center h-14 gap-4">
+      <div className="container mx-auto px-3 sm:px-4">
+        <div className="flex items-center h-14 gap-2 sm:gap-4">
           <div className="flex items-center gap-2">
             <img src="/logo.png" alt="FtheRoads" className="h-8 w-8 rounded-lg shadow-lg" />
             <div>
@@ -45,12 +48,14 @@ function Header() {
               <span className="text-white font-medium">Fix</span> — Report road hazards in Ray County, MO
             </span>
           </div>
-          <div className="ml-auto flex items-center gap-2">
+          <div className="ml-auto flex items-center gap-1 sm:gap-2 min-w-0">
             <Button variant="ghost" size="sm" onClick={() => navigate('/reports')} className="h-8 text-xs text-gray-300 hover:text-white hover:bg-white/10">
-              <List className="h-3.5 w-3.5 mr-1" />
-              Reports
+              <List className="h-3.5 w-3.5 sm:mr-1" />
+              <span className="hidden sm:inline">Reports</span>
             </Button>
-            <LoginArea className="max-w-40" />
+            <div className="min-w-0">
+              <LoginArea className="max-w-32 sm:max-w-40" />
+            </div>
           </div>
         </div>
       </div>
@@ -70,11 +75,11 @@ function StatsBar({ reports }: { reports: ReturnType<typeof useRoadReports>['dat
     { label: 'Potholes', value: potholes, color: 'text-yellow-400', bg: 'bg-yellow-500/10' },
   ];
   return (
-    <div className="grid grid-cols-4 gap-2">
+    <div className="grid grid-cols-4 gap-1.5 sm:gap-2">
       {stats.map((s) => (
-        <div key={s.label} className={`${s.bg} rounded-xl p-2.5 text-center`}>
-          <div className={`text-xl font-bold ${s.color}`}>{s.value}</div>
-          <div className="text-[10px] text-muted-foreground font-medium">{s.label}</div>
+        <div key={s.label} className={`${s.bg} rounded-xl p-1.5 sm:p-2.5 text-center`}>
+          <div className={`text-base sm:text-xl font-bold ${s.color}`}>{s.value}</div>
+          <div className="text-[9px] sm:text-[10px] text-muted-foreground font-medium">{s.label}</div>
         </div>
       ))}
     </div>
@@ -83,10 +88,80 @@ function StatsBar({ reports }: { reports: ReturnType<typeof useRoadReports>['dat
 
 function MapFallback() {
   return (
-    <div className="flex items-center justify-center bg-muted/30 rounded-2xl" style={{ height: 'calc(100vh - 220px)', minHeight: '400px' }}>
+    <div className="flex items-center justify-center bg-muted/30 rounded-2xl h-[calc(100vh-200px)] sm:h-[calc(100vh-220px)] min-h-[300px] sm:min-h-[400px]">
       <div className="text-center space-y-3">
         <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full mx-auto" />
         <p className="text-sm text-muted-foreground">Loading map...</p>
+      </div>
+    </div>
+  );
+}
+
+/** Sidebar content shared between desktop panel and mobile sheet. */
+function SidebarContent({ reports, isLoading, selectedLocation, handleMapClick, navigate }: {
+  reports: ReturnType<typeof useRoadReports>['data'];
+  isLoading: boolean;
+  selectedLocation: { lat: number; lng: number } | null;
+  handleMapClick: (lat: number, lng: number) => void;
+  navigate: ReturnType<typeof useNavigate>;
+}) {
+  const recentReports = reports?.slice(0, 8) ?? [];
+
+  return (
+    <div className="space-y-3">
+      {/* Report form section */}
+      <div>
+        <h2 className="font-bold text-sm flex items-center gap-1.5 mb-2">
+          <AlertCircle className="h-4 w-4 text-red-500" />
+          Report Hazard
+        </h2>
+        <Suspense fallback={<Skeleton className="h-40 w-full" />}>
+          <ReportForm
+            selectedLocation={selectedLocation}
+            onLocationSelect={handleMapClick}
+            onClearLocation={() => {}}
+          />
+        </Suspense>
+      </div>
+
+      <div className="border-t pt-3">
+        <div className="flex items-center justify-between mb-2">
+          <h2 className="font-bold text-sm flex items-center gap-1.5">
+            <AlertTriangle className="h-4 w-4 text-orange-500" />
+            Recent Reports
+          </h2>
+          <Button variant="ghost" size="sm" onClick={() => navigate('/reports')} className="h-7 text-xs">
+            View All <ChevronRight className="h-3 w-3 ml-0.5" />
+          </Button>
+        </div>
+        {isLoading ? (
+          Array.from({ length: 4 }).map((_, i) => (
+            <Card key={i} className="rounded-xl">
+              <CardContent className="p-3">
+                <div className="flex items-start gap-2">
+                  <Skeleton className="h-8 w-8 rounded-full" />
+                  <div className="flex-1 space-y-1.5">
+                    <Skeleton className="h-3 w-3/4" />
+                    <Skeleton className="h-2.5 w-1/2" />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ))
+        ) : recentReports.length === 0 ? (
+          <Card className="border-dashed rounded-xl">
+            <CardContent className="py-6 text-center">
+              <MapPin className="h-6 w-6 mx-auto mb-2 text-muted-foreground" />
+              <p className="text-xs text-muted-foreground">No reports yet</p>
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="space-y-2">
+            {recentReports.map((report) => (
+              <ReportCard key={report.id} report={report} compact />
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
@@ -98,6 +173,8 @@ function IndexContent() {
   const { data: reports, isLoading } = useRoadReports();
   const [selectedLocation, setSelectedLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [showSidebar, setShowSidebar] = useState(true);
+  const [mobileSheetOpen, setMobileSheetOpen] = useState(false);
+  const isMobile = useIsMobile();
 
   // Handle lat/lng query params from "Show on Map"
   useEffect(() => {
@@ -106,13 +183,18 @@ function IndexContent() {
     if (lat && lng) {
       setSelectedLocation({ lat: parseFloat(lat), lng: parseFloat(lng) });
       setSearchParams({}, { replace: true });
+      if (isMobile) setMobileSheetOpen(true);
     }
-  }, [searchParams, setSearchParams]);
+  }, [searchParams, setSearchParams, isMobile]);
 
   const handleMapClick = useCallback((lat: number, lng: number) => {
     setSelectedLocation({ lat, lng });
-    setShowSidebar(true);
-  }, []);
+    if (isMobile) {
+      setMobileSheetOpen(true);
+    } else {
+      setShowSidebar(true);
+    }
+  }, [isMobile]);
 
   const recentReports = reports?.slice(0, 8) ?? [];
 
@@ -132,76 +214,59 @@ function IndexContent() {
               interactive={true}
             />
           </Suspense>
+
+          {/* Desktop sidebar toggle */}
           <Button
             variant="ghost"
             size="sm"
             onClick={() => setShowSidebar(!showSidebar)}
-            className="absolute top-2 right-2 z-[1001] h-8 w-8 p-0 bg-white dark:bg-gray-800 shadow-lg"
+            className="absolute top-2 right-2 z-[1001] h-8 w-8 p-0 bg-white dark:bg-gray-800 shadow-lg hidden md:flex"
           >
             {showSidebar ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
           </Button>
+
+          {/* Mobile FAB — opens bottom sheet with form + reports */}
+          <Button
+            variant="default"
+            size="sm"
+            onClick={() => setMobileSheetOpen(true)}
+            className="absolute bottom-4 right-4 z-[1001] h-12 w-12 rounded-full shadow-xl md:hidden bg-gradient-to-r from-red-500 to-orange-500 hover:from-red-600 hover:to-orange-600"
+          >
+            <Plus className="h-6 w-6" />
+          </Button>
         </div>
+
+        {/* Desktop sidebar panel */}
         {showSidebar && (
           <div className="w-80 border-l bg-background overflow-y-auto p-3 hidden md:block">
-            <div className="space-y-3">
-              {/* Report form section */}
-              <div>
-                <h2 className="font-bold text-sm flex items-center gap-1.5 mb-2">
-                  <AlertCircle className="h-4 w-4 text-red-500" />
-                  Report Hazard
-                </h2>
-                <Suspense fallback={<Skeleton className="h-40 w-full" />}>
-                  <ReportForm
-                    selectedLocation={selectedLocation}
-                    onLocationSelect={handleMapClick}
-                    onClearLocation={() => setSelectedLocation(null)}
-                  />
-                </Suspense>
-              </div>
-
-              <div className="border-t pt-3">
-                <div className="flex items-center justify-between mb-2">
-                  <h2 className="font-bold text-sm flex items-center gap-1.5">
-                    <AlertTriangle className="h-4 w-4 text-orange-500" />
-                    Recent Reports
-                  </h2>
-                  <Button variant="ghost" size="sm" onClick={() => navigate('/reports')} className="h-7 text-xs">
-                    View All <ChevronRight className="h-3 w-3 ml-0.5" />
-                  </Button>
-                </div>
-                {isLoading ? (
-                  Array.from({ length: 4 }).map((_, i) => (
-                    <Card key={i} className="rounded-xl">
-                      <CardContent className="p-3">
-                        <div className="flex items-start gap-2">
-                          <Skeleton className="h-8 w-8 rounded-full" />
-                          <div className="flex-1 space-y-1.5">
-                            <Skeleton className="h-3 w-3/4" />
-                            <Skeleton className="h-2.5 w-1/2" />
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))
-                ) : recentReports.length === 0 ? (
-                  <Card className="border-dashed rounded-xl">
-                    <CardContent className="py-6 text-center">
-                      <MapPin className="h-6 w-6 mx-auto mb-2 text-muted-foreground" />
-                      <p className="text-xs text-muted-foreground">No reports yet</p>
-                    </CardContent>
-                  </Card>
-                ) : (
-                  <div className="space-y-2">
-                    {recentReports.map((report) => (
-                      <ReportCard key={report.id} report={report} compact />
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
+            <SidebarContent
+              reports={reports}
+              isLoading={isLoading}
+              selectedLocation={selectedLocation}
+              handleMapClick={handleMapClick}
+              navigate={navigate}
+            />
           </div>
         )}
       </div>
+
+      {/* Mobile bottom sheet */}
+      <Sheet open={isMobile && mobileSheetOpen} onOpenChange={setMobileSheetOpen}>
+        <SheetContent side="bottom" className="h-[85vh] rounded-t-2xl p-4 overflow-y-auto">
+          <SheetTitle className="text-sm font-bold flex items-center gap-1.5 mb-3">
+            <AlertCircle className="h-4 w-4 text-red-500" />
+            Report &amp; Reports
+          </SheetTitle>
+          <SidebarContent
+            reports={reports}
+            isLoading={isLoading}
+            selectedLocation={selectedLocation}
+            handleMapClick={handleMapClick}
+            navigate={navigate}
+          />
+        </SheetContent>
+      </Sheet>
+
       <footer className="border-t py-2 px-4 text-center bg-muted/30">
         <p className="text-[10px] text-muted-foreground">
           <a href="https://shakespeare.diy" target="_blank" rel="noopener noreferrer" className="hover:underline text-blue-500">

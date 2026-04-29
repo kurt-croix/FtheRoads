@@ -76,7 +76,7 @@ export default function ReportDetail() {
 
       <div className="container max-w-2xl mx-auto px-4 py-6 space-y-4">
         {/* Map preview */}
-        <div className="rounded-2xl overflow-hidden border relative" style={{ height: '300px' }}>
+        <div className="rounded-2xl overflow-hidden border relative h-48 sm:h-72 md:h-80">
           <Suspense fallback={<div className="absolute inset-0 flex items-center justify-center bg-muted/30"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>}>
             <ReportMap
               reports={[report]}
