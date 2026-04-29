@@ -6,12 +6,15 @@ on:
     paths:
       - 'iac/**'
       - 'src/**'
+      - 'tests/**'
       - 'public/**'
       - 'package.json'
       - 'package-lock.json'
       - 'index.html'
       - 'vite.config.ts'
       - '.github/workflows/deploy.yml'
+  pull_request:
+    branches: ['master']
   workflow_dispatch:
 
 concurrency:
@@ -28,7 +31,29 @@ env:
   VITE_LAMBDA_URL: https://ocoxc5q46dsjb7m4qqgy6sxn4y0srnal.lambda-url.us-east-1.on.aws/
 
 jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Run unit tests
+        run: npx vitest run --exclude='tests/e2e/**' --exclude='tests/lambda/**'
+
+      - name: Type check
+        run: npx tsc --noEmit
+
   build:
+    needs: test
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
