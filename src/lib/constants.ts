@@ -1,4 +1,7 @@
 // FtheRoads.com - Constants
+import yaml from 'js-yaml';
+// @ts-expect-error — Vite ?raw import returns file content as string
+import configRaw from '../../config.yaml?raw';
 
 /** Nostr event kind for road hazard reports */
 export const KIND_ROAD_REPORT = 1031;
@@ -38,21 +41,33 @@ export const REPORT_STATUSES = [
   { value: 'fixed', label: 'Fixed' },
 ] as const;
 
-/** Default email for notifications */
+/** Default email for notifications (fallback for districts without a contact) */
 export const DEFAULT_NOTIFICATION_EMAIL = 'croix4clerk@pm.me';
 
 /** Polygon data for district boundaries */
 export { default as DISTRICT_POLYGONS } from '@/data/rayCountyTownships.json';
 
-/** Road district to notification email mapping */
-export const DISTRICT_EMAIL_MAP: Record<string, string> = {
-  'County': 'croix4clerk@pm.me',
-  'Crystal Lakes': 'Croix4Clerk@pm.me',
-  'Camden': 'CROIX4CLERK@pm.me',
-  'Lawson': 'croix4Clerk@pm.me',
-  'Excelsior Springs': 'Croix4clerk@pm.me',
-  'Henrietta': 'CROIX4clerk@pm.me',
-  'Orrick': 'croix4CLERK@pm.me',
-  'Richmond': 'Croix4CLERK@pm.me',
-  'Hardin': 'CROIX4Clerk@pm.me',
+/**
+ * Admin npub for error notifications (nostr DM) and BCC on report emails.
+ * Receives a NIP-17 DM when report/email errors occur.
+ */
+export const ADMIN_NPUB = 'npub17w98lrsg36nj0cckhxgd52wdlrgnx544lgy4jsg3fwpla7jtvlaqgjdrc6';
+
+/** Admin nostr-mail address (uid.ovh bridge resolves npub → mailbox) */
+export const ADMIN_EMAIL = `${ADMIN_NPUB}@uid.ovh`;
+
+/**
+ * District email config parsed from config.yaml at build time.
+ * Falls back to DEFAULT_NOTIFICATION_EMAIL if config unavailable.
+ */
+const config = yaml.load(configRaw) as {
+  districtEmails?: { default?: string; districts?: Record<string, string> };
 };
+
+const _districtEmails = config.districtEmails?.districts ?? {};
+const _defaultDistrictEmail = config.districtEmails?.default ?? DEFAULT_NOTIFICATION_EMAIL;
+
+/** Get notification email for a road district */
+export function getDistrictEmail(district: string | undefined): string {
+  return _districtEmails[district ?? ''] ?? _defaultDistrictEmail;
+}

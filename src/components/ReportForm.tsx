@@ -17,7 +17,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { AlertCircle, MapPin, Loader2, X, Upload, Mail } from 'lucide-react';
-import { HAZARD_TYPES, SEVERITY_LEVELS, KIND_ROAD_REPORT, DISTRICT_EMAIL_MAP, DEFAULT_NOTIFICATION_EMAIL } from '@/lib/constants';
+import { HAZARD_TYPES, SEVERITY_LEVELS, KIND_ROAD_REPORT, getDistrictEmail, DEFAULT_NOTIFICATION_EMAIL } from '@/lib/constants';
 import { encodeGeohash } from '@/lib/geohash';
 import { lookupRoadDistrict } from '@/lib/jurisdiction';
 import { useNostrMail } from '@/hooks/useNostrMail';
@@ -34,7 +34,7 @@ export function ReportForm({ selectedLocation, onLocationSelect, onReportCreated
   const { user } = useCurrentUser();
   const { mutateAsync: publishEvent } = useNostrPublish();
   const { mutateAsync: uploadFile } = useUploadFile();
-  const { sendReportNotification } = useNostrMail();
+  const { sendReportNotification, sendErrorDM } = useNostrMail();
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -204,20 +204,34 @@ export function ReportForm({ selectedLocation, onLocationSelect, onReportCreated
         tags,
       });
 
-      // Send email notification via Lambda
+      // Send email notification
       let emailError: string | undefined;
+      const displayName = author.data?.metadata?.name || reporterName.trim() || 'Anonymous';
+      const reportMeta = {
+        title: title || `Road hazard: ${hazardType}`,
+        type: hazardType,
+        severity,
+        lat: selectedLocation.lat,
+        lng: selectedLocation.lng,
+        district: districtName || undefined,
+        reporterName: displayName,
+      };
+
+      const errorDMContext = {
+        reportTitle: reportMeta.title,
+        reportType: reportMeta.type,
+        severity: reportMeta.severity,
+        lat: reportMeta.lat,
+        lng: reportMeta.lng,
+        district: reportMeta.district,
+        reporterName: reportMeta.reporterName,
+      };
+
       try {
-        const displayName = author.data?.metadata?.name || reporterName.trim() || 'Anonymous';
         await sendReportNotification({
-          title: title || `Road hazard: ${hazardType}`,
-          type: hazardType,
-          severity,
+          ...reportMeta,
           description,
           location: locationDesc,
-          lat: selectedLocation.lat,
-          lng: selectedLocation.lng,
-          district: districtName || undefined,
-          reporterName: displayName,
           imageUrl: finalImageUrl || undefined,
           contactEmail: wantsFollowUp ? contactEmail : undefined,
           contactPhone: wantsFollowUp ? contactPhone : undefined,
@@ -225,6 +239,8 @@ export function ReportForm({ selectedLocation, onLocationSelect, onReportCreated
       } catch (err) {
         emailError = err instanceof Error ? err.message : 'Unknown error';
         console.error('nostr-mail:', err);
+        // Notify admin via nostr DM
+        sendErrorDM({ error: `Email failed: ${emailError}`, ...errorDMContext });
       }
 
       toast({
@@ -247,6 +263,17 @@ export function ReportForm({ selectedLocation, onLocationSelect, onReportCreated
         variant: 'destructive',
       });
       console.error('Report submission error:', error);
+      // Notify admin via nostr DM
+      sendErrorDM({
+        error: `Report publish failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        reportTitle: title || `Road hazard: ${hazardType}`,
+        reportType: hazardType,
+        severity,
+        reporterName: author.data?.metadata?.name || reporterName.trim() || 'Unknown',
+        lat: selectedLocation?.lat,
+        lng: selectedLocation?.lng,
+        district: district || undefined,
+      });
     } finally {
       setIsSubmitting(false);
     }
@@ -309,7 +336,7 @@ export function ReportForm({ selectedLocation, onLocationSelect, onReportCreated
         {district && (
           <div className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
             <Mail className="h-3 w-3" />
-            <span>Report will be sent to {DISTRICT_EMAIL_MAP[district] ?? DEFAULT_NOTIFICATION_EMAIL}</span>
+            <span>Report will be sent to {getDistrictEmail(district)}</span>
           </div>
         )}
       </div>
