@@ -115,8 +115,8 @@ export function ReportListPage() {
           </div>
 
           {/* Search and filters */}
-          <div className="flex gap-2 mt-3">
-            <div className="relative flex-1">
+          <div className="flex gap-2 mt-3 overflow-x-auto">
+            <div className="relative flex-1 min-w-0">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
                 placeholder="Search reports..."
@@ -126,7 +126,7 @@ export function ReportListPage() {
               />
             </div>
             <Select value={typeFilter} onValueChange={setTypeFilter}>
-              <SelectTrigger className="w-28 h-9 text-xs">
+              <SelectTrigger className="w-28 shrink-0 h-9 text-xs">
                 <SelectValue placeholder="Type" />
               </SelectTrigger>
               <SelectContent>
@@ -139,7 +139,7 @@ export function ReportListPage() {
               </SelectContent>
             </Select>
             <Select value={severityFilter} onValueChange={setSeverityFilter}>
-              <SelectTrigger className="w-28 h-9 text-xs">
+              <SelectTrigger className="w-28 shrink-0 h-9 text-xs">
                 <SelectValue placeholder="Severity" />
               </SelectTrigger>
               <SelectContent>
@@ -149,6 +149,17 @@ export function ReportListPage() {
                     {level.label}
                   </SelectItem>
                 ))}
+              </SelectContent>
+            </Select>
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="w-24 shrink-0 h-9 text-xs">
+                <SelectValue placeholder="Status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All</SelectItem>
+                <SelectItem value="open">Open</SelectItem>
+                <SelectItem value="acknowledged">Acknowledged</SelectItem>
+                <SelectItem value="fixed">Fixed</SelectItem>
               </SelectContent>
             </Select>
           </div>
