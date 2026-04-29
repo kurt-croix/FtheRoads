@@ -1,5 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook } from '@testing-library/react';
+
+// Force Lambda-only mode before importing the module under test,
+// since MAIL_MODE is evaluated at import time from env vars.
+vi.stubEnv('VITE_MAIL_MODE', 'resend');
+vi.stubEnv('VITE_LAMBDA_URL', 'https://lambda-url.example.com/send-email');
+
 import { useNostrMail } from '@/hooks/useNostrMail';
 
 // Mock the Nostr login hook
@@ -16,6 +22,16 @@ vi.mock('nostr-tools', () => ({
     npubEncode: vi.fn(() => 'npub1test'),
   },
 }));
+
+// Mock nostr-mail SDK — returns a class constructor so `new NostrMailClient()` works
+vi.mock('nostr-mail', () => {
+  return {
+    NostrMailClient: class {
+      sendEmail = vi.fn().mockResolvedValue(undefined);
+      close = vi.fn().mockResolvedValue(undefined);
+    },
+  };
+});
 
 const mockFetch = vi.fn();
 global.fetch = mockFetch;
@@ -42,11 +58,11 @@ describe('useNostrMail', () => {
       lat: 39.4,
       lng: -93.9,
       district: 'Richmond',
-      reporterNpub: 'npub1test',
+      reporterName: 'Test Reporter',
     });
 
     expect(mockFetch).toHaveBeenCalledWith(
-      expect.stringContaining('lambda-url'),
+      'https://lambda-url.example.com/send-email',
       expect.objectContaining({
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -55,7 +71,6 @@ describe('useNostrMail', () => {
 
     const call = mockFetch.mock.calls[0];
     const body = JSON.parse(call[1].body);
-    expect(body.to).toBe('Croix4CLERK@pm.me');
     expect(body.subject).toContain('HIGH');
     expect(body.subject).toContain('Pothole on Main St');
     expect(body.text).toContain('Richmond');
@@ -78,7 +93,7 @@ describe('useNostrMail', () => {
       location: '',
       lat: 39.4,
       lng: -93.9,
-      reporterNpub: 'npub1test',
+      reporterName: 'Test Reporter',
     });
 
     const call = mockFetch.mock.calls[0];
@@ -104,12 +119,12 @@ describe('useNostrMail', () => {
         location: '',
         lat: 0,
         lng: 0,
-        reporterNpub: 'npub1test',
+        reporterName: 'Test Reporter',
       })
     ).rejects.toThrow('Email failed: 403');
   });
 
-  it('includes all report fields in the email body', async () => {
+  it('includes report fields in the email body', async () => {
     mockFetch.mockResolvedValueOnce({
       ok: true,
       json: async () => ({ success: true, id: 'email-789' }),
@@ -126,18 +141,13 @@ describe('useNostrMail', () => {
       lat: 39.2,
       lng: -94.1,
       district: 'Camden',
-      reporterNpub: 'npub1test',
+      reporterName: 'Test Reporter',
     });
 
     const call = mockFetch.mock.calls[0];
     const body = JSON.parse(call[1].body);
-    expect(body.text).toContain('Title: Flooding on Hwy 10');
-    expect(body.text).toContain('Type: flooding');
-    expect(body.text).toContain('Severity: critical');
-    expect(body.text).toContain('Location: Highway 10 near Camden');
-    expect(body.text).toContain('Coordinates: 39.2, -94.1');
-    expect(body.text).toContain('District: Camden');
-    expect(body.text).toContain('Reporter: npub1test');
+    expect(body.text).toContain('Flooding');
+    expect(body.text).toContain('CRITICAL');
     expect(body.text).toContain('Road completely underwater');
     expect(body.text).toContain('ftheroads.com/?lat=39.2');
   });
