@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo } from 'react';
 import { useRoadReports } from '@/hooks/useRoadReports';
 import { useDeleteReport, useEditReport } from '@/hooks/useReportMutations';
 import { ReportCard } from '@/components/ReportCard';
@@ -39,19 +39,9 @@ export function ReportListPage() {
 
   const [editingReport, setEditingReport] = useState<RoadReport | null>(null);
   const [deletingReport, setDeletingReport] = useState<RoadReport | null>(null);
-  const [pendingDelete, setPendingDelete] = useState<RoadReport | null>(null);
 
   const deleteReport = useDeleteReport();
   const editReport = useEditReport();
-
-  // Fire-and-forget delete after dialog closes
-  useEffect(() => {
-    if (pendingDelete) {
-      const report = pendingDelete;
-      setPendingDelete(null);
-      deleteReport(report).catch(console.error);
-    }
-  }, [pendingDelete, deleteReport]);
 
   const filteredReports = useMemo(() => {
     if (!reports) return [];
@@ -216,7 +206,12 @@ export function ReportListPage() {
               onClick={() => navigate(`/report/${report.id}`)}
               onShowOnMap={(lat, lng) => navigate(`/?lat=${lat}&lng=${lng}`)}
               onEdit={(r) => setEditingReport(r)}
-              onDelete={(r) => setDeletingReport(r)}
+              onDelete={(r) => {
+                // Defer so DropdownMenu finishes closing before AlertDialog opens.
+                // Without this, radix's DismissableLayer from the dropdown conflicts
+                // with the AlertDialog's layer, blocking pointer events after close.
+                setTimeout(() => setDeletingReport(r), 0);
+              }}
             />
           ))
         )}
@@ -231,14 +226,7 @@ export function ReportListPage() {
       />
 
       {/* Delete Confirmation */}
-      <AlertDialog
-        open={!!deletingReport}
-        onOpenChange={(open) => {
-          if (!open) {
-            setDeletingReport(null);
-          }
-        }}
-      >
+      <AlertDialog open={!!deletingReport} onOpenChange={(open) => { if (!open) setDeletingReport(null); }}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Delete Report</AlertDialogTitle>
@@ -251,8 +239,9 @@ export function ReportListPage() {
             <AlertDialogAction
               onClick={() => {
                 if (deletingReport) {
-                  setPendingDelete(deletingReport);
+                  const report = deletingReport;
                   setDeletingReport(null);
+                  deleteReport(report).catch(console.error);
                 }
               }}
               className="bg-red-500 hover:bg-red-600 text-white"
