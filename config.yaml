@@ -1,16 +1,15 @@
 # FtheRoads Configuration
 # Edit this file to update district email contacts without rebuilding.
-# Production values are managed separately — this file uses dev defaults.
 
 districtEmails:
-  default: croix4clerk@pm.me
+  default: raycountycommissioners@commission.raycountymo.gov
   districts:
-    County: croix4clerk@pm.me
-    Crystal Lakes: croix4clerk@pm.me
-    Camden: croix4clerk@pm.me
-    Lawson: croix4clerk@pm.me
-    Excelsior Springs: croix4clerk@pm.me
-    Henrietta: croix4clerk@pm.me
-    Orrick: croix4clerk@pm.me
-    Richmond: croix4clerk@pm.me
-    Hardin: croix4clerk@pm.me
+    County: raycountycommissioners@commission.raycountymo.gov
+    Crystal Lakes: raycountycommissioners@commission.raycountymo.gov
+    Camden: vasmithey@gmail.com
+    Lawson: shookdld@aol.com
+    Excelsior Springs: raycountycommissioners@commission.raycountymo.gov
+    Henrietta: raycountycommissioners@commission.raycountymo.gov
+    Orrick: dnailfarms@gmail.com
+    Richmond: susan_coats@sbcglobal.net
+    Hardin: kodell2008411@gmail.com
