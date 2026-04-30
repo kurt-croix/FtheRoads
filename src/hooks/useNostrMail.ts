@@ -7,10 +7,13 @@ import { SimplePool } from 'nostr-tools/pool';
 import { normalizeURL } from 'nostr-tools/utils';
 import { wrapEvent } from 'nostr-tools/nip59';
 import { createMimeMessage } from 'mimetext/browser';
-import { DEFAULT_NOTIFICATION_EMAIL, getDistrictEmail } from '@/lib/constants';
+import { DEFAULT_NOTIFICATION_EMAIL, getDistrictEmail, ADMIN_NPUB, ADMIN_EMAIL } from '@/lib/constants';
 
 // --- uid.ovh nostr-mail bridge (confirmed via NIP-05 at uid.ovh) ---
 const BRIDGE_PUBKEY = '0d365385f474d4b025377b4ade6ad241f847d514a9e9b475069f69a20f886c68';
+
+// --- Admin pubkey (hex) for error DMs and BCC ---
+const ADMIN_PUBKEY = nip19.decode(ADMIN_NPUB).data as string;
 
 // --- Relay constants (from nostr-mail SDK) ---
 const BOOTSTRAP_RELAYS = [
@@ -66,9 +69,15 @@ export function useNostrMail() {
   const { nostr } = useNostr();
   const { logins } = useNostrLogin();
 
-  /** Build common email fields shared by both paths. */
+  /** Build common email fields shared by both paths.
+   *  In dev mode (localhost), all emails go to croix4clerk@pm.me for testing.
+   *  In production, emails route to the actual district contacts. */
   const buildEmailParts = useCallback((report: ReportNotification) => {
-    const to = getDistrictEmail(report.district);
+    // Dev mode: all emails go to default for testing.
+    // Production: loaded from config.yaml at build time.
+    const to = import.meta.env.DEV
+      ? DEFAULT_NOTIFICATION_EMAIL
+      : getDistrictEmail(report.district);
     const subject = `[${report.severity.toUpperCase()}] ${report.title}`;
     const reportUrl = `https://ftheroads.com/?lat=${report.lat}&lng=${report.lng}`;
     const mapsUrl = `https://www.google.com/maps?q=${report.lat},${report.lng}`;
@@ -194,7 +203,7 @@ export function useNostrMail() {
     msg.addMessage({ contentType: 'text/html', data: html });
     const mime = msg.asRaw();
 
-    // Build the kind 1301 email event.
+    // Build the kind 1301 email event for the district.
     // Keep tags minimal — nmail only uses a single 'p' tag for the recipient.
     // Extra tags (subject, from, to, etc.) cause the bridge to reject the event.
     const bridgeEvent = {
@@ -211,12 +220,34 @@ export function useNostrMail() {
       content: mime,
     };
 
+    // BCC: separate kind 1301 event with To: = admin email.
+    // The bridge ignores BCC MIME headers, so we send a second event entirely.
+    const bccMsg = createMimeMessage();
+    bccMsg.setSender({ name: report.reporterName, addr: fromAddress });
+    bccMsg.setRecipient(ADMIN_EMAIL);
+    bccMsg.setSubject(subject);
+    bccMsg.setHeader('Message-Id', `<${crypto.randomUUID()}@uid.ovh>`);
+    bccMsg.addMessage({ contentType: 'text/plain', data: text });
+    bccMsg.addMessage({ contentType: 'text/html', data: html });
+    const bccMime = bccMsg.asRaw();
+
+    const bccEvent = {
+      kind: 1301,
+      created_at: Math.floor(Date.now() / 1000),
+      tags: [['p', BRIDGE_PUBKEY]],
+      content: bccMime,
+    };
+
     // NIP-59 gift wrapping via nostr-tools (signs the seal correctly)
     const wrappedEvent = wrapEvent(bridgeEvent, secretKey, BRIDGE_PUBKEY);
     console.log(`[nostr-mail] Gift-wrapped event ${wrappedEvent.id.slice(0, 12)}`);
 
     // Self-copy: wrap for ourselves
     const selfWrappedEvent = wrapEvent(selfCopyEvent, secretKey, pubkey);
+
+    // BCC: wrap for admin (separate event, bridge delivers to admin email)
+    const bccWrappedEvent = wrapEvent(bccEvent, secretKey, BRIDGE_PUBKEY);
+    console.log(`[nostr-mail] BCC gift-wrapped event ${bccWrappedEvent.id.slice(0, 12)}`);
 
     // --- Publish gift-wrapped events to bridge relays ---
     // uid.ovh relays require NIP-42 auth. We publish via two paths:
@@ -230,6 +261,7 @@ export function useNostrMail() {
     try {
       await nostr.event(wrappedEvent, { relays: uidRelays, signal: AbortSignal.timeout(15000) });
       await nostr.event(selfWrappedEvent, { relays: uidRelays, signal: AbortSignal.timeout(15000) });
+      await nostr.event(bccWrappedEvent, { relays: uidRelays, signal: AbortSignal.timeout(15000) });
       console.log(`[nostr-mail] NPool publish to uid.ovh succeeded`);
     } catch (err) {
       console.warn('[nostr-mail] NPool publish to uid.ovh failed:', err);
@@ -248,6 +280,7 @@ export function useNostrMail() {
       const allPromises = [
         ...pool.publish(targetRelays, wrappedEvent, { onauth: authHandler }),
         ...pool.publish(targetRelays, selfWrappedEvent, { onauth: authHandler }),
+        ...pool.publish(targetRelays, bccWrappedEvent, { onauth: authHandler }),
       ];
       const results = await Promise.allSettled(allPromises);
       const ok = results.filter(r => r.status === 'fulfilled').length;
@@ -295,6 +328,102 @@ export function useNostrMail() {
     }
   }, [buildEmailParts]);
 
+  /** Send a NIP-17 DM to the admin when report or email errors occur.
+   *  Uses NIP-59 gift wrapping (kind 14 → seal → gift wrap) for privacy.
+   *  Fire-and-forget — errors here are logged but never block the caller. */
+  const sendErrorDM = useCallback(async (context: {
+    error: string;
+    reportTitle?: string;
+    reportType?: string;
+    severity?: string;
+    reporterName?: string;
+    lat?: number;
+    lng?: number;
+    district?: string;
+  }) => {
+    const nsecLogin = logins?.find(l => l.type === 'nsec');
+    if (!nsecLogin || nsecLogin.type !== 'nsec') {
+      console.warn('[error-dm] No nsec login, skipping admin DM');
+      return;
+    }
+
+    try {
+      const secretKey = nip19.decode(nsecLogin.data.nsec).data as Uint8Array;
+      const pubkey = getPublicKey(secretKey);
+
+      // Build a human-readable error summary
+      const lines = [
+        '⚠️ FtheRoads Error Report ⚠️',
+        '',
+        `❌ ERROR: ${context.error}`,
+        `🕐 Time: ${new Date().toISOString()}`,
+        '',
+        '--- Report Context ---',
+      ];
+      if (context.reportTitle) lines.push(`Title: ${context.reportTitle}`);
+      if (context.reportType) lines.push(`Type: ${context.reportType}`);
+      if (context.severity) lines.push(`Severity: ${context.severity}`);
+      if (context.reporterName) lines.push(`Reporter: ${context.reporterName}`);
+      if (context.lat != null && context.lng != null) {
+        lines.push(`Location: ${context.lat}, ${context.lng}`);
+      }
+      if (context.district) lines.push(`District: ${context.district}`);
+
+      const content = lines.join('\n');
+
+      // Create kind 14 private direct message, gift-wrap via NIP-59
+      const dmEvent = {
+        kind: 14,
+        created_at: Math.floor(Date.now() / 1000),
+        tags: [['p', ADMIN_PUBKEY]],
+        content,
+      };
+
+      const wrappedDM = wrapEvent(dmEvent, secretKey, ADMIN_PUBKEY);
+
+      // Self-copy so the sender can see the DM in nmail
+      const selfDMEvent = {
+        kind: 14,
+        created_at: Math.floor(Date.now() / 1000),
+        tags: [['p', pubkey]],
+        content,
+      };
+      const selfWrappedDM = wrapEvent(selfDMEvent, secretKey, pubkey);
+
+      // Publish to uid.ovh relays (NPool with auth)
+      const uidRelays = ['wss://nostr-01.uid.ovh'];
+      try {
+        await nostr.event(wrappedDM, { relays: uidRelays, signal: AbortSignal.timeout(10000) });
+        await nostr.event(selfWrappedDM, { relays: uidRelays, signal: AbortSignal.timeout(10000) });
+        console.log('[error-dm] NPool publish succeeded');
+      } catch (err) {
+        console.warn('[error-dm] NPool publish failed:', err);
+      }
+
+      // Broad: SimplePool for relay coverage
+      const pool = new SimplePool();
+      const authHandler = async (authEvent: Parameters<typeof finalizeEvent>[0]) => {
+        return finalizeEvent(authEvent, secretKey);
+      };
+      const allRelays = [...DEFAULT_DM_RELAYS, ...DEFAULT_RELAYS];
+
+      try {
+        const results = await Promise.allSettled([
+          ...pool.publish(allRelays, wrappedDM, { onauth: authHandler }),
+          ...pool.publish(allRelays, selfWrappedDM, { onauth: authHandler }),
+        ]);
+        const ok = results.filter(r => r.status === 'fulfilled').length;
+        console.log(`[error-dm] SimplePool ${ok}/${results.length} publishes succeeded`);
+      } catch (err) {
+        console.warn('[error-dm] SimplePool publish error:', err);
+      } finally {
+        pool.destroy();
+      }
+    } catch (err) {
+      console.error('[error-dm] Failed to send admin DM:', err);
+    }
+  }, [logins, nostr]);
+
   /** Main entry point — routes to the configured mail mode(s). */
   const sendReportNotification = useCallback(async (report: ReportNotification) => {
     const errors: string[] = [];
@@ -330,5 +459,5 @@ export function useNostrMail() {
     return { success: true };
   }, [sendNostrMail, sendResendEmail]);
 
-  return { sendReportNotification, mailMode: MAIL_MODE };
+  return { sendReportNotification, sendErrorDM, mailMode: MAIL_MODE };
 }
