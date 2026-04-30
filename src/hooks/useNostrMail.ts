@@ -35,17 +35,22 @@ const DEFAULT_RELAYS = [
 ];
 
 // --- Lambda email (Resend) ---
-const LAMBDA_URL = import.meta.env.VITE_LAMBDA_URL as string | undefined;
+/** Read at call time so tests can override via vi.stubEnv. */
+function getLambdaUrl(): string | undefined {
+  return import.meta.env.VITE_LAMBDA_URL as string | undefined;
+}
 
 // --- Mail mode configuration ---
-// "nostr"  = send via nostr-mail bridge only (default for local dev)
-// "resend" = send via Lambda/Resend only
-// "both"   = send both nostr-mail and Lambda/Resend (production default)
+// "nostr"  = send via nostr-mail bridge only
+// "resend" = send via Lambda/Resend only (default)
+// "both"   = send both nostr-mail and Lambda/Resend (production)
 type MailMode = 'nostr' | 'resend' | 'both';
 
-const MAIL_MODE: MailMode =
-  (import.meta.env.VITE_MAIL_MODE as MailMode | undefined) ??
-  'nostr';
+/** Read at call time so tests can override via vi.stubEnv. */
+function getMailMode(): MailMode {
+  return (import.meta.env.VITE_MAIL_MODE as MailMode | undefined) ??
+    'resend';
+}
 
 interface ReportNotification {
   title: string;
@@ -261,7 +266,8 @@ export function useNostrMail() {
 
   /** Send email via Lambda/Resend. */
   const sendResendEmail = useCallback(async (report: ReportNotification) => {
-    if (!LAMBDA_URL) {
+    const lambdaUrl = getLambdaUrl();
+    if (!lambdaUrl) {
       throw new Error('VITE_LAMBDA_URL not configured');
     }
 
@@ -269,7 +275,7 @@ export function useNostrMail() {
     console.log('[email] Sending to:', to, 'subject:', subject);
 
     try {
-      const response = await fetch(LAMBDA_URL, {
+      const response = await fetch(lambdaUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ to, subject, text, html, imageUrl: report.imageUrl }),
@@ -299,7 +305,9 @@ export function useNostrMail() {
   const sendReportNotification = useCallback(async (report: ReportNotification) => {
     const errors: string[] = [];
 
-    if (MAIL_MODE === 'nostr' || MAIL_MODE === 'both') {
+    const mailMode = getMailMode();
+
+    if (mailMode === 'nostr' || mailMode === 'both') {
       try {
         await sendNostrMail(report);
         console.log('[mail] Nostr-mail sent successfully');
@@ -310,7 +318,7 @@ export function useNostrMail() {
       }
     }
 
-    if (MAIL_MODE === 'resend' || MAIL_MODE === 'both') {
+    if (mailMode === 'resend' || mailMode === 'both') {
       try {
         await sendResendEmail(report);
         console.log('[mail] Resend email sent successfully');
@@ -322,7 +330,7 @@ export function useNostrMail() {
     }
 
     // If ALL configured methods failed, throw
-    const expectedCount = MAIL_MODE === 'both' ? 2 : 1;
+    const expectedCount = mailMode === 'both' ? 2 : 1;
     if (errors.length === expectedCount) {
       throw new Error(errors.join('; '));
     }
@@ -330,5 +338,5 @@ export function useNostrMail() {
     return { success: true };
   }, [sendNostrMail, sendResendEmail]);
 
-  return { sendReportNotification, mailMode: MAIL_MODE };
+  return { sendReportNotification, mailMode: getMailMode() };
 }
