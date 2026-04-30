@@ -61,12 +61,12 @@ beforeEach(() => {
 });
 
 describe('LoginArea', () => {
-  it('shows "Existing User" and "New User" buttons when no currentUser', () => {
+  it('shows "Login" and "Sign Up" buttons when no currentUser', () => {
     mockUseLoggedInAccounts.mockReturnValue(loggedOut);
     render(<LoginArea />);
 
-    expect(screen.getByText('Existing User')).toBeInTheDocument();
-    expect(screen.getByText('New User')).toBeInTheDocument();
+    expect(screen.getByText('Login')).toBeInTheDocument();
+    expect(screen.getByText('Sign Up')).toBeInTheDocument();
   });
 
   it('shows AccountSwitcher when currentUser exists', () => {
@@ -75,30 +75,30 @@ describe('LoginArea', () => {
 
     expect(screen.getByTestId('account-switcher')).toBeInTheDocument();
     // The logged-out buttons should not be visible.
-    expect(screen.queryByText('Existing User')).not.toBeInTheDocument();
-    expect(screen.queryByText('New User')).not.toBeInTheDocument();
+    expect(screen.queryByText('Login')).not.toBeInTheDocument();
+    expect(screen.queryByText('Sign Up')).not.toBeInTheDocument();
   });
 
-  it('opens login dialog when "Existing User" clicked', () => {
+  it('opens login dialog when "Login" clicked', () => {
     mockUseLoggedInAccounts.mockReturnValue(loggedOut);
     render(<LoginArea />);
 
     // Dialog starts closed.
     expect(screen.queryByTestId('login-dialog')).not.toBeInTheDocument();
 
-    fireEvent.click(screen.getByText('Existing User'));
+    fireEvent.click(screen.getByText('Login'));
 
     expect(screen.getByTestId('login-dialog')).toBeInTheDocument();
   });
 
-  it('opens signup dialog when "New User" clicked', () => {
+  it('opens signup dialog when "Sign Up" clicked', () => {
     mockUseLoggedInAccounts.mockReturnValue(loggedOut);
     render(<LoginArea />);
 
     // Dialog starts closed.
     expect(screen.queryByTestId('signup-dialog')).not.toBeInTheDocument();
 
-    fireEvent.click(screen.getByText('New User'));
+    fireEvent.click(screen.getByText('Sign Up'));
 
     expect(screen.getByTestId('signup-dialog')).toBeInTheDocument();
   });
@@ -119,8 +119,8 @@ describe('LoginArea', () => {
     render(<LoginArea />);
 
     // Open both dialogs.
-    fireEvent.click(screen.getByText('Existing User'));
-    fireEvent.click(screen.getByText('New User'));
+    fireEvent.click(screen.getByText('Login'));
+    fireEvent.click(screen.getByText('Sign Up'));
     expect(screen.getByTestId('login-dialog')).toBeInTheDocument();
     expect(screen.getByTestId('signup-dialog')).toBeInTheDocument();
 
