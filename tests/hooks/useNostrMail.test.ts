@@ -64,7 +64,7 @@ describe('useNostrMail', () => {
 
     const call = mockFetch.mock.calls[0];
     const body = JSON.parse(call[1].body);
-    expect(body.to).toBe('Croix4CLERK@pm.me');
+    expect(body.to).toBe('croix4clerk@pm.me');
     expect(body.subject).toContain('HIGH');
     expect(body.subject).toContain('Pothole on Main St');
     expect(body.text).toContain('Richmond');
