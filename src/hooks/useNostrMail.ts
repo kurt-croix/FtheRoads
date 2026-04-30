@@ -225,34 +225,12 @@ export function useNostrMail() {
       content: mime,
     };
 
-    // BCC: separate kind 1301 event with To: = admin email.
-    // The bridge ignores BCC MIME headers, so we send a second event entirely.
-    const bccMsg = createMimeMessage();
-    bccMsg.setSender({ name: report.reporterName, addr: fromAddress });
-    bccMsg.setRecipient(ADMIN_EMAIL);
-    bccMsg.setSubject(subject);
-    bccMsg.setHeader('Message-Id', `<${crypto.randomUUID()}@uid.ovh>`);
-    bccMsg.addMessage({ contentType: 'text/plain', data: text });
-    bccMsg.addMessage({ contentType: 'text/html', data: html });
-    const bccMime = bccMsg.asRaw();
-
-    const bccEvent = {
-      kind: 1301,
-      created_at: Math.floor(Date.now() / 1000),
-      tags: [['p', BRIDGE_PUBKEY]],
-      content: bccMime,
-    };
-
     // NIP-59 gift wrapping via nostr-tools (signs the seal correctly)
     const wrappedEvent = wrapEvent(bridgeEvent, secretKey, BRIDGE_PUBKEY);
     console.log(`[nostr-mail] Gift-wrapped event ${wrappedEvent.id.slice(0, 12)}`);
 
     // Self-copy: wrap for ourselves
     const selfWrappedEvent = wrapEvent(selfCopyEvent, secretKey, pubkey);
-
-    // BCC: wrap for admin (separate event, bridge delivers to admin email)
-    const bccWrappedEvent = wrapEvent(bccEvent, secretKey, BRIDGE_PUBKEY);
-    console.log(`[nostr-mail] BCC gift-wrapped event ${bccWrappedEvent.id.slice(0, 12)}`);
 
     // --- Publish gift-wrapped events to bridge relays ---
     // uid.ovh relays require NIP-42 auth. We publish via two paths:
@@ -266,7 +244,6 @@ export function useNostrMail() {
     try {
       await nostr.event(wrappedEvent, { relays: uidRelays, signal: AbortSignal.timeout(15000) });
       await nostr.event(selfWrappedEvent, { relays: uidRelays, signal: AbortSignal.timeout(15000) });
-      await nostr.event(bccWrappedEvent, { relays: uidRelays, signal: AbortSignal.timeout(15000) });
       console.log(`[nostr-mail] NPool publish to uid.ovh succeeded`);
     } catch (err) {
       console.warn('[nostr-mail] NPool publish to uid.ovh failed:', err);
@@ -285,7 +262,6 @@ export function useNostrMail() {
       const allPromises = [
         ...pool.publish(targetRelays, wrappedEvent, { onauth: authHandler }),
         ...pool.publish(targetRelays, selfWrappedEvent, { onauth: authHandler }),
-        ...pool.publish(targetRelays, bccWrappedEvent, { onauth: authHandler }),
       ];
       const results = await Promise.allSettled(allPromises);
       const ok = results.filter(r => r.status === 'fulfilled').length;
@@ -311,7 +287,7 @@ export function useNostrMail() {
       const response = await fetch(lambdaUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ to, subject, text, html, imageUrl: report.imageUrl }),
+        body: JSON.stringify({ to, subject, text, html, imageUrl: report.imageUrl, bcc: ADMIN_EMAIL }),
       });
 
       if (!response.ok) {

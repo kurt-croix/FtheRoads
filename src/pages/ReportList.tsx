@@ -232,10 +232,11 @@ export function ReportListPage() {
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
-              onClick={async () => {
+              onClick={() => {
                 if (deletingReport) {
-                  await deleteReport(deletingReport);
+                  const report = deletingReport;
                   setDeletingReport(null);
+                  deleteReport(report).catch(console.error);
                 }
               }}
               className="bg-red-500 hover:bg-red-600 text-white"
