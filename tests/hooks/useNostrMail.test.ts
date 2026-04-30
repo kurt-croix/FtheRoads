@@ -2,6 +2,13 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook } from '@testing-library/react';
 import { useNostrMail } from '@/hooks/useNostrMail';
 
+// Mock useNostr (required by useNostrMail for NPool publish)
+vi.mock('@nostrify/react', () => ({
+  useNostr: () => ({
+    nostr: { event: vi.fn() },
+  }),
+}));
+
 // Mock the Nostr login hook
 vi.mock('@nostrify/react/login', () => ({
   useNostrLogin: () => ({
@@ -23,6 +30,8 @@ global.fetch = mockFetch;
 describe('useNostrMail', () => {
   beforeEach(() => {
     mockFetch.mockReset();
+    vi.stubEnv('VITE_MAIL_MODE', 'resend');
+    vi.stubEnv('VITE_LAMBDA_URL', 'https://lambda-url.example.com/send');
   });
 
   it('sends email via Lambda with district email mapping', async () => {
@@ -42,7 +51,7 @@ describe('useNostrMail', () => {
       lat: 39.4,
       lng: -93.9,
       district: 'Richmond',
-      reporterNpub: 'npub1test',
+      reporterName: 'Test Reporter',
     });
 
     expect(mockFetch).toHaveBeenCalledWith(
@@ -78,7 +87,7 @@ describe('useNostrMail', () => {
       location: '',
       lat: 39.4,
       lng: -93.9,
-      reporterNpub: 'npub1test',
+      reporterName: 'Test Reporter',
     });
 
     const call = mockFetch.mock.calls[0];
@@ -104,7 +113,7 @@ describe('useNostrMail', () => {
         location: '',
         lat: 0,
         lng: 0,
-        reporterNpub: 'npub1test',
+        reporterName: 'Test Reporter',
       })
     ).rejects.toThrow('Email failed: 403');
   });
@@ -126,19 +135,19 @@ describe('useNostrMail', () => {
       lat: 39.2,
       lng: -94.1,
       district: 'Camden',
-      reporterNpub: 'npub1test',
+      reporterName: 'Test Reporter',
     });
 
     const call = mockFetch.mock.calls[0];
     const body = JSON.parse(call[1].body);
-    expect(body.text).toContain('Title: Flooding on Hwy 10');
-    expect(body.text).toContain('Type: flooding');
-    expect(body.text).toContain('Severity: critical');
-    expect(body.text).toContain('Location: Highway 10 near Camden');
-    expect(body.text).toContain('Coordinates: 39.2, -94.1');
-    expect(body.text).toContain('District: Camden');
-    expect(body.text).toContain('Reporter: npub1test');
+    expect(body.text).toContain('CRITICAL');
+    expect(body.text).toContain('Flooding');
+    expect(body.text).toContain('39.2');
+    expect(body.text).toContain('Highway 10 near Camden');
+    expect(body.text).toContain('Camden');
     expect(body.text).toContain('Road completely underwater');
     expect(body.text).toContain('ftheroads.com/?lat=39.2');
+    expect(body.subject).toContain('CRITICAL');
+    expect(body.subject).toContain('Flooding on Hwy 10');
   });
 });
