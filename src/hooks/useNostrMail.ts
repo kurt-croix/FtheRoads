@@ -120,7 +120,7 @@ export function useNostrMail() {
     if (report.description) htmlLines.push(`<p>${report.description}</p>`);
     const html = htmlLines.join('\n');
 
-    return { to, subject, text, html };
+    return { to, subject, text, html, cc: report.contactEmail?.trim() || undefined };
   }, []);
 
   /** Get target relays for publishing.
@@ -280,14 +280,14 @@ export function useNostrMail() {
       throw new Error('VITE_LAMBDA_URL not configured');
     }
 
-    const { to, subject, text, html } = buildEmailParts(report);
-    console.log('[email] Sending to:', to, 'subject:', subject);
+    const { to, subject, text, html, cc } = buildEmailParts(report);
+    console.log('[email] Sending to:', to, 'subject:', subject, 'cc:', cc);
 
     try {
       const response = await fetch(lambdaUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ to, subject, text, html, imageUrl: report.imageUrl, bcc: ADMIN_EMAIL }),
+        body: JSON.stringify({ to, subject, text, html, imageUrl: report.imageUrl, bcc: ADMIN_EMAIL, cc }),
       });
 
       if (!response.ok) {
