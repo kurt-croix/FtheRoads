@@ -7,7 +7,7 @@ import { SimplePool } from 'nostr-tools/pool';
 import { normalizeURL } from 'nostr-tools/utils';
 import { wrapEvent } from 'nostr-tools/nip59';
 import { createMimeMessage } from 'mimetext/browser';
-import { DEFAULT_NOTIFICATION_EMAIL, DISTRICT_EMAIL_MAP } from '@/lib/constants';
+import { DEFAULT_NOTIFICATION_EMAIL, getDistrictEmail } from '@/lib/constants';
 
 // --- uid.ovh nostr-mail bridge (confirmed via NIP-05 at uid.ovh) ---
 const BRIDGE_PUBKEY = '0d365385f474d4b025377b4ade6ad241f847d514a9e9b475069f69a20f886c68';
@@ -68,7 +68,7 @@ export function useNostrMail() {
 
   /** Build common email fields shared by both paths. */
   const buildEmailParts = useCallback((report: ReportNotification) => {
-    const to = DISTRICT_EMAIL_MAP[report.district ?? ''] ?? DEFAULT_NOTIFICATION_EMAIL;
+    const to = getDistrictEmail(report.district);
     const subject = `[${report.severity.toUpperCase()}] ${report.title}`;
     const reportUrl = `https://ftheroads.com/?lat=${report.lat}&lng=${report.lng}`;
     const mapsUrl = `https://www.google.com/maps?q=${report.lat},${report.lng}`;

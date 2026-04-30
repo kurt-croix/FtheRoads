@@ -1,0 +1,16 @@
+# FtheRoads Configuration
+# Edit this file to update district email contacts without rebuilding.
+# Production values are managed separately — this file uses dev defaults.
+
+districtEmails:
+  default: croix4clerk@pm.me
+  districts:
+    County: croix4clerk@pm.me
+    Crystal Lakes: croix4clerk@pm.me
+    Camden: croix4clerk@pm.me
+    Lawson: croix4clerk@pm.me
+    Excelsior Springs: croix4clerk@pm.me
+    Henrietta: croix4clerk@pm.me
+    Orrick: croix4clerk@pm.me
+    Richmond: croix4clerk@pm.me
+    Hardin: croix4clerk@pm.me

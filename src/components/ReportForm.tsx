@@ -17,7 +17,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { AlertCircle, MapPin, Loader2, X, Upload, Mail } from 'lucide-react';
-import { HAZARD_TYPES, SEVERITY_LEVELS, KIND_ROAD_REPORT, DISTRICT_EMAIL_MAP, DEFAULT_NOTIFICATION_EMAIL } from '@/lib/constants';
+import { HAZARD_TYPES, SEVERITY_LEVELS, KIND_ROAD_REPORT, getDistrictEmail } from '@/lib/constants';
 import { encodeGeohash } from '@/lib/geohash';
 import { lookupRoadDistrict } from '@/lib/jurisdiction';
 import { useNostrMail } from '@/hooks/useNostrMail';
@@ -309,7 +309,7 @@ export function ReportForm({ selectedLocation, onLocationSelect, onReportCreated
         {district && (
           <div className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
             <Mail className="h-3 w-3" />
-            <span>Report will be sent to {DISTRICT_EMAIL_MAP[district] ?? DEFAULT_NOTIFICATION_EMAIL}</span>
+            <span>Report will be sent to {getDistrictEmail(district)}</span>
           </div>
         )}
       </div>
