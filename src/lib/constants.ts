@@ -48,15 +48,6 @@ export const DEFAULT_NOTIFICATION_EMAIL = 'croix4clerk@pm.me';
 export { default as DISTRICT_POLYGONS } from '@/data/rayCountyTownships.json';
 
 /**
- * Admin npub for error notifications (nostr DM) and BCC on report emails.
- * Receives a NIP-17 DM when report/email errors occur.
- */
-export const ADMIN_NPUB = 'npub17w98lrsg36nj0cckhxgd52wdlrgnx544lgy4jsg3fwpla7jtvlaqgjdrc6';
-
-/** Admin nostr-mail address (uid.ovh bridge resolves npub → mailbox) */
-export const ADMIN_EMAIL = `${ADMIN_NPUB}@uid.ovh`;
-
-/**
  * District email config parsed from config.yaml at build time.
  * Falls back to DEFAULT_NOTIFICATION_EMAIL if config unavailable.
  */
