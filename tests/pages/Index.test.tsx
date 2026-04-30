@@ -75,6 +75,7 @@ vi.mock('lucide-react', () => {
     'Menu',
     'X',
     'ChevronRight',
+    'Plus',
   ];
   const mod: Record<string, React.FC> = {};
   icons.forEach((name) => {
@@ -82,6 +83,17 @@ vi.mock('lucide-react', () => {
   });
   return mod;
 });
+
+vi.mock('@/hooks/useIsMobile', () => ({
+  useIsMobile: () => false, // Default to desktop in tests
+}));
+
+vi.mock('@/components/ui/sheet', () => ({
+  Sheet: ({ children, open, onOpenChange }: any) =>
+    open ? <div data-testid="sheet">{children}</div> : null,
+  SheetContent: ({ children }: any) => <div>{children}</div>,
+  SheetTitle: ({ children }: any) => <div>{children}</div>,
+}));
 
 // Import component under test AFTER all mocks are set up
 import Index from '@/pages/Index';
