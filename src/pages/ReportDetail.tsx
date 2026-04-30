@@ -8,10 +8,9 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ArrowLeft, MapPin, Clock, User, AlertTriangle, Mail, Loader2 } from 'lucide-react';
-import { HAZARD_TYPES, SEVERITY_LEVELS, DEFAULT_NOTIFICATION_EMAIL } from '@/lib/constants';
+import { HAZARD_TYPES, SEVERITY_LEVELS, DEFAULT_NOTIFICATION_EMAIL, getDistrictEmail } from '@/lib/constants';
 import { decodeGeohash } from '@/lib/geohash';
 import { formatDistanceToNow } from 'date-fns';
-import { DISTRICT_EMAIL_MAP } from '@/lib/constants';
 import { NoteContent } from '@/components/NoteContent';
 
 const ReportMap = lazy(() =>
@@ -51,7 +50,7 @@ export default function ReportDetail() {
   const hazardType = HAZARD_TYPES.find(h => h.value === report.type);
   const severity = SEVERITY_LEVELS.find(s => s.value === report.severity);
   const emailTarget = report.district
-    ? DISTRICT_EMAIL_MAP[report.district] ?? DEFAULT_NOTIFICATION_EMAIL
+    ? getDistrictEmail(report.district)
     : DEFAULT_NOTIFICATION_EMAIL;
 
   // Get coordinates for the map
