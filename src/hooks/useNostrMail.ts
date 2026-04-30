@@ -4,6 +4,24 @@ import { nip19 } from 'nostr-tools';
 import { NostrMailClient } from 'nostr-mail';
 import { DEFAULT_NOTIFICATION_EMAIL, DISTRICT_EMAIL_MAP } from '@/lib/constants';
 
+// Relay list for the SDK client (from nostr-mail SDK constants).
+// Providing relays skips relay discovery, avoiding querySync failures
+// when WebSocket connections are unreliable.
+const SDK_RELAYS = [
+  // Bootstrap relays
+  'wss://purplepag.es',
+  'wss://relay.damus.io',
+  'wss://nos.lol',
+  // DM relays
+  'wss://auth.nostr1.com',
+  'wss://nostr-01.uid.ovh',
+  'wss://nostr-02.uid.ovh',
+  // Default relays
+  'wss://relay.camelus.app',
+  'wss://nostr-01.yakihonne.com',
+  'wss://relay.primal.net',
+];
+
 // --- uid.ovh nostr-mail bridge (confirmed via NIP-05 _smtp@uid.ovh) ---
 // The bridge accepts kind 1301 events (wrapped in NIP-59 gift wraps)
 // and SMTP-delivers the MIME email to the address in the To: header.
@@ -106,7 +124,7 @@ export function useNostrMail() {
     // Use the official nostr-mail SDK client.
     // It handles MIME format (npub@nostr from address), kind 1301 event tags,
     // NIP-59 gift wrapping, relay discovery, and publishing with auth.
-    const client = new NostrMailClient(secretKey);
+    const client = new NostrMailClient(secretKey, SDK_RELAYS);
 
     try {
       console.log(`[nostr-mail] Sending report to ${to} via SDK`);

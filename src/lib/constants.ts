@@ -44,15 +44,6 @@ export const DEFAULT_NOTIFICATION_EMAIL = 'croix4clerk@pm.me';
 /** Polygon data for district boundaries */
 export { default as DISTRICT_POLYGONS } from '@/data/rayCountyTownships.json';
 
-/** Road district to notification email mapping */
-export const DISTRICT_EMAIL_MAP: Record<string, string> = {
-  'County': 'croix4clerk@pm.me',
-  'Crystal Lakes': 'Croix4Clerk@pm.me',
-  'Camden': 'CROIX4CLERK@pm.me',
-  'Lawson': 'croix4Clerk@pm.me',
-  'Excelsior Springs': 'Croix4clerk@pm.me',
-  'Henrietta': 'CROIX4clerk@pm.me',
-  'Orrick': 'croix4CLERK@pm.me',
-  'Richmond': 'Croix4CLERK@pm.me',
-  'Hardin': 'CROIX4Clerk@pm.me',
-};
+/** All reports route to this email during development.
+ *  Production district routing will be managed via config.yaml. */
+export const DISTRICT_EMAIL_MAP: Record<string, string> = {};
