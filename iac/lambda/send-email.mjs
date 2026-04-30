@@ -11,29 +11,15 @@ export const handler = async (event) => {
 
   // CORS preflight
   if (method === "OPTIONS") {
-    return {
-      statusCode: 200,
-      headers: corsHeaders(),
-      body: "",
-    };
+    return { statusCode: 200, body: "" };
   }
 
   if (method !== "POST") {
     return { statusCode: 405, body: "Method Not Allowed" };
   }
 
-  // Only allow from FtheRoads domains (and localhost for dev)
-  const origin = event.headers?.origin || event.headers?.Origin || "";
-  const allowed = [
-    "https://ftheroads.com",
-    "https://www.ftheroads.com",
-    "http://localhost:5173",
-    "http://localhost:8080",
-    "http://localhost:4173",
-  ];
-  if (!allowed.includes(origin)) {
-    return { statusCode: 403, body: "Forbidden" };
-  }
+  // Origin validation is handled by Lambda Function URL CORS config in Terraform.
+  // No need to check origin here — AWS rejects non-allowed origins before this runs.
 
   let body;
   try {
@@ -100,7 +86,6 @@ export const handler = async (event) => {
       console.error("Resend error:", JSON.stringify(result));
       return {
         statusCode: response.status,
-        headers: corsHeaders(),
         body: JSON.stringify({ error: result }),
       };
     }
@@ -108,7 +93,6 @@ export const handler = async (event) => {
     console.log("Email sent:", JSON.stringify({ to, subject, id: result.id }));
     return {
       statusCode: 200,
-      headers: corsHeaders(),
       body: JSON.stringify({ success: true, id: result.id }),
     };
   } catch (err) {
@@ -116,11 +100,3 @@ export const handler = async (event) => {
     return { statusCode: 500, body: "Internal server error" };
   }
 };
-
-function corsHeaders() {
-  return {
-    "Access-Control-Allow-Origin": "*",
-    "Access-Control-Allow-Methods": "POST, OPTIONS",
-    "Access-Control-Allow-Headers": "Content-Type",
-  };
-}
