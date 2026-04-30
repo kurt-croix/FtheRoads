@@ -1,13 +1,8 @@
-const RESEND_API_URL = "https://api.resend.com/emails";
-
-// Lambda Function URL event format uses event.requestContext.http.method
-// and event.headers is lowercase. API Gateway format uses event.httpMethod.
-function getMethod(event) {
-  return event.requestContext?.http?.method || event.httpMethod || "";
-}
-
 export const handler = async (event) => {
-  const method = getMethod(event);
+  // Lambda Function URL CORS is configured in Terraform.
+  // Do NOT set CORS headers here — duplicate headers break browser CORS checks.
+
+  const method = event.requestContext?.http?.method || event.httpMethod || "";
 
   // CORS preflight
   if (method === "OPTIONS") {
@@ -18,9 +13,6 @@ export const handler = async (event) => {
     return { statusCode: 405, body: "Method Not Allowed" };
   }
 
-  // Origin validation is handled by Lambda Function URL CORS config in Terraform.
-  // No need to check origin here — AWS rejects non-allowed origins before this runs.
-
   let body;
   try {
     body = JSON.parse(event.body || "{}");
@@ -28,7 +20,7 @@ export const handler = async (event) => {
     return { statusCode: 400, body: "Invalid JSON" };
   }
 
-  const { to, subject, text, html, imageUrl } = body;
+  const { to, subject, text, html, imageUrl, bcc } = body;
   if (!to || !subject || !text) {
     return { statusCode: 400, body: "Missing required fields: to, subject, text" };
   }
@@ -48,6 +40,11 @@ export const handler = async (event) => {
       // Use provided HTML or fall back to plain text
       html: html || text.replace(/\n/g, "<br>"),
     };
+
+    // BCC admin if provided
+    if (bcc) {
+      emailPayload.bcc = [bcc];
+    }
 
     // If an image URL was provided, fetch it and embed inline via CID
     if (imageUrl) {
@@ -71,7 +68,7 @@ export const handler = async (event) => {
       }
     }
 
-    const response = await fetch(RESEND_API_URL, {
+    const response = await fetch("https://api.resend.com/emails", {
       method: "POST",
       headers: {
         Authorization: `Bearer ${apiKey}`,
