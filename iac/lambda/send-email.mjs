@@ -20,7 +20,7 @@ export const handler = async (event) => {
     return { statusCode: 400, body: "Invalid JSON" };
   }
 
-  const { to, subject, text, html, imageUrl, bcc } = body;
+  const { to, subject, text, html, imageUrl, bcc, cc } = body;
   if (!to || !subject || !text) {
     return { statusCode: 400, body: "Missing required fields: to, subject, text" };
   }
@@ -44,6 +44,11 @@ export const handler = async (event) => {
     // BCC admin if provided
     if (bcc) {
       emailPayload.bcc = [bcc];
+    }
+
+    // CC reporter if they provided an email
+    if (cc) {
+      emailPayload.cc = [cc];
     }
 
     // If an image URL was provided, fetch it and embed inline via CID
