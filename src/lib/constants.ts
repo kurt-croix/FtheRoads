@@ -1,6 +1,6 @@
 // FtheRoads.com - Constants
 import yaml from 'js-yaml';
-// @ts-expect-error — Vite ?raw import returns file content as string
+// @ts-ignore — Vite ?raw import returns file content as string
 import configRaw from '../../config.yaml?raw';
 
 /** Nostr event kind for road hazard reports */

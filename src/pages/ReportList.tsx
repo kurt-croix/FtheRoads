@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef } from 'react';
 import { useRoadReports } from '@/hooks/useRoadReports';
 import { useDeleteReport, useEditReport } from '@/hooks/useReportMutations';
 import { ReportCard } from '@/components/ReportCard';
@@ -42,6 +42,9 @@ export function ReportListPage() {
 
   const deleteReport = useDeleteReport();
   const editReport = useEditReport();
+
+  // Ref to hold the report being deleted so we can fire-and-forget after dialog closes
+  const pendingDeleteRef = useRef<RoadReport | null>(null);
 
   const filteredReports = useMemo(() => {
     if (!reports) return [];
@@ -221,7 +224,20 @@ export function ReportListPage() {
       />
 
       {/* Delete Confirmation */}
-      <AlertDialog open={!!deletingReport} onOpenChange={(open) => { if (!open) setDeletingReport(null); }}>
+      <AlertDialog
+        open={!!deletingReport}
+        onOpenChange={(open) => {
+          if (!open) {
+            // Dialog closed — fire-and-forget the delete if user confirmed
+            const pending = pendingDeleteRef.current;
+            pendingDeleteRef.current = null;
+            setDeletingReport(null);
+            if (pending) {
+              deleteReport(pending).catch(console.error);
+            }
+          }
+        }}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Delete Report</AlertDialogTitle>
@@ -232,14 +248,10 @@ export function ReportListPage() {
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
-              onClick={() => {
-                if (deletingReport) {
-                  const report = deletingReport;
-                  setDeletingReport(null);
-                  deleteReport(report).catch(console.error);
-                }
-              }}
               className="bg-red-500 hover:bg-red-600 text-white"
+              onPointerDown={() => {
+                pendingDeleteRef.current = deletingReport;
+              }}
             >
               Delete
             </AlertDialogAction>
