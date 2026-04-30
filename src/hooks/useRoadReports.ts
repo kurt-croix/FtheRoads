@@ -86,7 +86,18 @@ export function useRoadReports() {
         limit: 200,
       }], { signal: AbortSignal.timeout(10000) });
 
-      const validEvents = events.filter(validateRoadReport);
+      // Fetch kind 5 deletion events and filter out deleted reports
+      const deletions = await nostr.query([{
+        kinds: [5],
+        limit: 200,
+      }], { signal: AbortSignal.timeout(5000) }).catch(() => [] as NostrEvent[]);
+
+      const deletedIds = new Set(
+        deletions.flatMap(e => e.tags.filter(([name]) => name === 'e').map(([, id]) => id))
+      );
+
+      const validEvents = events.filter(validateRoadReport)
+        .filter(e => !deletedIds.has(e.id));
       const reports = validEvents.map(parseReport);
 
       // Sort by creation time, newest first
