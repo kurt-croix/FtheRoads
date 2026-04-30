@@ -22,11 +22,14 @@ export const handler = async (event) => {
     return { statusCode: 405, body: "Method Not Allowed" };
   }
 
-  // Only allow from FtheRoads domains
+  // Only allow from FtheRoads domains (and localhost for dev)
   const origin = event.headers?.origin || event.headers?.Origin || "";
   const allowed = [
     "https://ftheroads.com",
     "https://www.ftheroads.com",
+    "http://localhost:5173",
+    "http://localhost:8080",
+    "http://localhost:4173",
   ];
   if (!allowed.includes(origin)) {
     return { statusCode: 403, body: "Forbidden" };
