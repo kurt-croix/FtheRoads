@@ -375,7 +375,7 @@ export function ReportForm({ selectedLocation, onLocationSelect, onReportCreated
             <SelectTrigger className="mt-1 h-9 text-sm">
               <SelectValue placeholder="Select" />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent position="item-aligned">
               {HAZARD_TYPES.map((type) => (
                 <SelectItem key={type.value} value={type.value}>
                   {type.icon} {type.label}
@@ -390,7 +390,7 @@ export function ReportForm({ selectedLocation, onLocationSelect, onReportCreated
             <SelectTrigger className="mt-1 h-9 text-sm">
               <SelectValue placeholder="Select" />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent position="item-aligned">
               {SEVERITY_LEVELS.map((level) => (
                 <SelectItem key={level.value} value={level.value}>
                   <span className="flex items-center gap-2">
